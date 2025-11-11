@@ -5,11 +5,12 @@
 //  Created by Brandon Bevans on 11/10/25.
 //
 
+import SuperwallKit
 import SwiftUI
 
 struct OnboardingView: View {
   @StateObject private var viewModel = OnboardingViewModel()
-  @State private var hasCompleted = false
+  @State private var hasTriggeredPaywall = false
 
   var body: some View {
     ZStack {
@@ -28,7 +29,7 @@ struct OnboardingView: View {
         if viewModel.currentStep != .gender {
           ContinueButtonView(
             title: "Continue",
-            isEnabled: viewModel.canContinue
+            isEnabled: viewModel.canContinue && !hasTriggeredPaywall
           ) {
             handleContinue()
           }
@@ -43,14 +44,6 @@ struct OnboardingView: View {
     }
     .animation(.spring(response: 0.45, dampingFraction: 0.85), value: viewModel.currentStep)
     .animation(.easeInOut(duration: 0.2), value: viewModel.canContinue)
-    .alert(
-      "Onboarding Complete", isPresented: $hasCompleted,
-      actions: {
-        Button("OK", role: .cancel) {}
-      },
-      message: {
-        Text("Great job! Hook this action up to the next screen when it's ready.")
-      })
   }
 
   @ViewBuilder
@@ -200,8 +193,14 @@ struct OnboardingView: View {
         viewModel.nextStep()
       }
     case .processDifficulty:
-      hasCompleted = true
+      showPaywall()
     }
+  }
+
+  private func showPaywall() {
+    guard !hasTriggeredPaywall else { return }
+    hasTriggeredPaywall = true
+    Superwall.shared.register(placement: "campaign_trigger")
   }
 }
 
