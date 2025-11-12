@@ -26,7 +26,7 @@ struct OnboardingView: View {
 
         Spacer(minLength: 0)
 
-        if viewModel.currentStep != .gender {
+        if viewModel.currentStep != .gender && viewModel.currentStep != .goalRecency {
           ContinueButtonView(
             title: "Continue",
             isEnabled: viewModel.canContinue
@@ -66,7 +66,9 @@ struct OnboardingView: View {
     case .mood:
       MoodSelectionView(viewModel: viewModel)
     case .goalRecency:
-      GoalRecencySelectionView(viewModel: viewModel)
+      GoalRecencySelectionView(viewModel: viewModel) {
+        handleContinue()
+      }
     case .goalWritingInfo:
       GoalWritingInfoView()
     case .primaryGoal:
@@ -213,29 +215,27 @@ struct OnboardingView: View {
 // MARK: - Background & Chrome
 
 private struct OnboardingBackground: View {
-  private enum AccentLocation {
-    case top
-    case bottom
-  }
-
-  private let topAccentURL = URL(
-    string: "https://www.figma.com/api/mcp/asset/fe90c985-1450-4591-9523-58c4713640e8")
-  private let bottomAccentURL = URL(
-    string: "https://www.figma.com/api/mcp/asset/0580afcd-1f7a-4f75-9b86-0458db9bada6")
-
   var body: some View {
     Color.white
       .ignoresSafeArea()
       .overlay(
-        AccentBlob(location: .top, url: topAccentURL)
-          .frame(width: 198, height: 200)
-          .offset(x: 325, y: 7),
+        AccentBlob(
+          palette: .top,
+          stretch: CGSize(width: 1.45, height: 1.05),
+          rotation: .degrees(-18)
+        )
+        .frame(width: 280, height: 260)
+        .offset(x: 270, y: -42),
         alignment: .topLeading
       )
       .overlay(
-        AccentBlob(location: .bottom, url: bottomAccentURL)
-          .frame(width: 268, height: 300)
-          .offset(x: -202, y: 458),
+        AccentBlob(
+          palette: .bottom,
+          stretch: CGSize(width: 1.3, height: 1.15),
+          rotation: .degrees(16)
+        )
+        .frame(width: 340, height: 330)
+        .offset(x: -210, y: 400),
         alignment: .topLeading
       )
       .overlay(
@@ -253,57 +253,117 @@ private struct OnboardingBackground: View {
   }
 
   private struct AccentBlob: View {
-    let location: AccentLocation
-    let url: URL?
+    struct Palette {
+      let core: Color
+      let highlight: Color
+      let glow: Color
 
-    var body: some View {
-      Group {
-        if let url {
-          AsyncImage(url: url, transaction: Transaction(animation: .easeInOut(duration: 0.25))) {
-            phase in
-            switch phase {
-            case .success(let image):
-              image
-                .resizable()
-                .scaledToFill()
-            case .failure, .empty:
-              fallbackGradient
-            @unknown default:
-              fallbackGradient
-            }
-          }
-          .clipped()
-        } else {
-          fallbackGradient
-        }
-      }
-      .clipShape(Ellipse())
-      .opacity(location == .top ? 0.92 : 0.88)
+      static let top = Palette(
+        core: Color(red: 1.0, green: 0.66, blue: 0.98),
+        highlight: Color(red: 1.0, green: 0.81, blue: 0.99),
+        glow: Color(red: 0.95, green: 0.77, blue: 1.0)
+      )
+
+      static let bottom = Palette(
+        core: Color(red: 0.62, green: 0.83, blue: 1.0),
+        highlight: Color(red: 0.72, green: 0.88, blue: 1.0),
+        glow: Color(red: 0.64, green: 0.86, blue: 0.99)
+      )
     }
 
-    private var fallbackGradient: some View {
-      let gradient: LinearGradient
-      switch location {
-      case .top:
-        gradient = LinearGradient(
-          colors: [
-            Color(red: 1.0, green: 0.74, blue: 0.99),
-            Color.white.opacity(0.4),
-          ],
-          startPoint: .topLeading,
-          endPoint: .bottomTrailing
-        )
-      case .bottom:
-        gradient = LinearGradient(
-          colors: [
-            Color(red: 0.66, green: 0.82, blue: 0.99),
-            Color.white.opacity(0.35),
-          ],
-          startPoint: .bottomLeading,
-          endPoint: .topTrailing
-        )
+    let palette: Palette
+    let stretch: CGSize
+    let rotation: Angle
+
+    init(
+      palette: Palette,
+      stretch: CGSize = CGSize(width: 1, height: 1),
+      rotation: Angle = .zero
+    ) {
+      self.palette = palette
+      self.stretch = stretch
+      self.rotation = rotation
+    }
+
+    var body: some View {
+      GeometryReader { proxy in
+        let maxDimension = max(proxy.size.width, proxy.size.height)
+        let haloSize = maxDimension * 1.45
+        let coreSize = maxDimension * 1.05
+        let highlightSize = maxDimension * 0.92
+        let haloBlur = haloSize * 0.35
+        let coreBlur = coreSize * 0.28
+        let highlightBlur = highlightSize * 0.32
+
+        ZStack {
+          haloLayer(size: haloSize, blur: haloBlur)
+          coreLayer(size: coreSize, blur: coreBlur)
+          highlightLayer(size: highlightSize, blur: highlightBlur)
+        }
+        .scaleEffect(x: stretch.width, y: stretch.height, anchor: .center)
+        .rotationEffect(rotation)
+        .frame(width: proxy.size.width, height: proxy.size.height)
+        .compositingGroup()
+        .allowsHitTesting(false)
       }
-      return gradient
+    }
+
+    @ViewBuilder
+    private func haloLayer(size: CGFloat, blur: CGFloat) -> some View {
+      Ellipse()
+        .fill(
+          RadialGradient(
+            gradient: Gradient(stops: [
+              .init(color: palette.glow.opacity(0.26), location: 0),
+              .init(color: palette.glow.opacity(0.12), location: 0.35),
+              .init(color: palette.glow.opacity(0.0), location: 1),
+            ]),
+            center: .center,
+            startRadius: 0,
+            endRadius: size
+          )
+        )
+        .frame(width: size, height: size)
+        .blur(radius: blur)
+        .blendMode(.plusLighter)
+    }
+
+    @ViewBuilder
+    private func coreLayer(size: CGFloat, blur: CGFloat) -> some View {
+      Ellipse()
+        .fill(
+          RadialGradient(
+            gradient: Gradient(stops: [
+              .init(color: palette.core.opacity(0.55), location: 0),
+              .init(color: palette.core.opacity(0.18), location: 0.4),
+              .init(color: palette.core.opacity(0.0), location: 1),
+            ]),
+            center: .center,
+            startRadius: 0,
+            endRadius: size
+          )
+        )
+        .frame(width: size, height: size * 0.92)
+        .blur(radius: blur)
+        .blendMode(.plusLighter)
+    }
+
+    @ViewBuilder
+    private func highlightLayer(size: CGFloat, blur: CGFloat) -> some View {
+      Ellipse()
+        .fill(
+          LinearGradient(
+            gradient: Gradient(stops: [
+              .init(color: palette.highlight.opacity(0.48), location: 0),
+              .init(color: palette.highlight.opacity(0.0), location: 1),
+            ]),
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+          )
+        )
+        .frame(width: size, height: size * 0.78)
+        .blur(radius: blur)
+        .blendMode(.plusLighter)
     }
   }
 }

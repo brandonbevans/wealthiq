@@ -9,6 +9,7 @@ import SwiftUI
 
 struct GoalRecencySelectionView: View {
   @ObservedObject var viewModel: OnboardingViewModel
+  var onSelection: () -> Void = {}
 
   var body: some View {
     VStack(alignment: .leading, spacing: 24) {
@@ -26,6 +27,7 @@ struct GoalRecencySelectionView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
               viewModel.selectGoalRecency(option)
             }
+            onSelection()
           }
         }
       }
