@@ -32,14 +32,61 @@ struct OnboardingView: View {
             && viewModel.currentStep != .coachingStyle
             && viewModel.currentStep != .planCalculation
           {
-            ContinueButtonView(
-              title: "Continue",
-              isEnabled: viewModel.canContinue
-                && (viewModel.currentStep != .planCalculation || !hasTriggeredPaywall)
-            ) {
-              handleContinue()
+            if viewModel.currentStep == .goalVisualization || viewModel.currentStep == .microAction
+            {
+              HStack(spacing: 12) {
+                ContinueButtonView(
+                  title: "Continue",
+                  isEnabled: viewModel.canContinue
+                ) {
+                  handleContinue()
+                }
+
+                Button(action: {
+                  viewModel.toggleVoiceRecording(for: viewModel.currentStep)
+                }) {
+                  Circle()
+                    .fill(
+                      viewModel.isRecording
+                        ? Color(red: 0.39, green: 0.27, blue: 0.92)
+                        : Color.white.opacity(0.98)
+                    )
+                    .overlay(
+                      Image(
+                        systemName: viewModel.isRecording ? "stop.fill" : "mic.fill"
+                      )
+                      .font(.system(size: 20))
+                      .foregroundColor(
+                        viewModel.isRecording
+                          ? Color.white
+                          : Color(red: 0.39, green: 0.27, blue: 0.92))
+                    )
+                    .frame(width: 56, height: 56)
+                    .overlay(
+                      Circle()
+                        .stroke(
+                          viewModel.isRecording
+                            ? Color(red: 0.39, green: 0.27, blue: 0.92).opacity(0.3)
+                            : Color(red: 0.93, green: 0.93, blue: 0.93),
+                          lineWidth: viewModel.isRecording ? 2 : 1
+                        )
+                    )
+                    .scaleEffect(viewModel.isRecording ? 1.1 : 1.0)
+                    .animation(
+                      .easeInOut(duration: 0.2), value: viewModel.isRecording)
+                }
+              }
+              .padding(.top, 24)
+            } else {
+              ContinueButtonView(
+                title: "Continue",
+                isEnabled: viewModel.canContinue
+                  && (viewModel.currentStep != .planCalculation || !hasTriggeredPaywall)
+              ) {
+                handleContinue()
+              }
+              .padding(.top, 24)
             }
-            .padding(.top, 24)
           }
 
           HomeIndicatorView()
@@ -71,8 +118,6 @@ struct OnboardingView: View {
       AgeInputView(viewModel: viewModel)
     case .welcomeIntro:
       WelcomeIntroView(viewModel: viewModel)
-    case .mood:
-      MoodSelectionView(viewModel: viewModel)
     case .goalRecency:
       GoalRecencySelectionView(viewModel: viewModel) {
         handleContinue()
@@ -119,10 +164,6 @@ struct OnboardingView: View {
         viewModel.nextStep()
       }
     case .welcomeIntro:
-      withAnimation {
-        viewModel.nextStep()
-      }
-    case .mood:
       withAnimation {
         viewModel.nextStep()
       }

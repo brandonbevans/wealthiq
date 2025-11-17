@@ -38,10 +38,7 @@ struct PrimaryGoalInputView: View {
           OnboardingTextArea(
             text: $viewModel.primaryGoal,
             placeholder: placeholderText,
-            isFocused: Binding(
-              get: { isEditorFocused },
-              set: { isEditorFocused = $0 }
-            )
+            isFocused: $isEditorFocused
           )
           .frame(height: 100)
         }

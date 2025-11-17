@@ -9,5 +9,9 @@
 		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>WealthIQ needs access to your microphone to transcribe your thoughts when you tap the microphone button.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>WealthIQ uses speech recognition to convert your spoken thoughts into text for goal setting and reflection.</string>
 </dict>
 </plist>

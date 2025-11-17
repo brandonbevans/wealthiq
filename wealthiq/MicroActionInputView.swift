@@ -12,12 +12,13 @@ struct MicroActionInputView: View {
   var onSubmit: () -> Void
 
   @State private var isEditorFocused = false
+  @State private var isRecording = false
   private let placeholderText = "One tiny, concrete action."
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        Text("How could you make 1% progress this week toward your goal?")
+        Text("How could you make 1% progress toward your goal?")
           .font(.lora(24, weight: .semiBold))
           .foregroundColor(Color(red: 0.13, green: 0.06, blue: 0.16))
           .multilineTextAlignment(.leading)
@@ -28,10 +29,7 @@ struct MicroActionInputView: View {
           OnboardingTextArea(
             text: $viewModel.microAction,
             placeholder: placeholderText,
-            isFocused: Binding(
-              get: { isEditorFocused },
-              set: { isEditorFocused = $0 }
-            )
+            isFocused: $isEditorFocused
           )
           .frame(height: 100)
         }

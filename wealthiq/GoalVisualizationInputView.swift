@@ -12,17 +12,18 @@ struct GoalVisualizationInputView: View {
   var onSubmit: () -> Void
 
   @State private var isEditorFocused = false
-  private let placeholderText = "Share thoughts"
+  @State private var isRecording = false
+  private let placeholderText = "It works best if you use the microphone and ramble!"
 
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
         VStack(alignment: .leading, spacing: 10) {
-          Text("Stop and imagine what it would feel like to accomplish this goal.")
+          Text("Imagine what it would feel like to accomplish this goal.")
             .font(.lora(24, weight: .semiBold))
             .foregroundColor(Color(red: 0.13, green: 0.06, blue: 0.16))
             .fixedSize(horizontal: false, vertical: true)
-          Text("What would be different?")
+          Text("What would be different? How would your life change?")
             .font(.lora(24, weight: .semiBold))
             .foregroundColor(Color(red: 0.13, green: 0.06, blue: 0.16))
             .fixedSize(horizontal: false, vertical: true)
@@ -34,10 +35,7 @@ struct GoalVisualizationInputView: View {
           OnboardingTextArea(
             text: $viewModel.goalVisualization,
             placeholder: placeholderText,
-            isFocused: Binding(
-              get: { isEditorFocused },
-              set: { isEditorFocused = $0 }
-            )
+            isFocused: $isEditorFocused
           )
           .frame(height: 100)
         }
@@ -88,5 +86,3 @@ private struct GoalReflectionEditor<Content: View>: View {
     .padding(20)
     .background(Color.white)
 }
-
-

@@ -7,6 +7,7 @@
 
 import Combine
 import Foundation
+import Speech
 
 enum Gender: String, CaseIterable {
   case female = "Female"
@@ -94,15 +95,14 @@ enum OnboardingStep: Int, CaseIterable {
   case name = 1
   case age = 2
   case welcomeIntro = 3
-  case mood = 4
-  case goalRecency = 5
-  case goalWritingInfo = 6
-  case primaryGoal = 7
-  case goalVisualization = 8
-  case visualizationInfo = 9
-  case microAction = 10
-  case coachingStyle = 11
-  case planCalculation = 12
+  case goalRecency = 4
+  case goalWritingInfo = 5
+  case primaryGoal = 6
+  case goalVisualization = 7
+  case visualizationInfo = 8
+  case microAction = 9
+  case coachingStyle = 10
+  case planCalculation = 11
 
   var totalSteps: Int {
     OnboardingStep.allCases.count
@@ -114,12 +114,27 @@ class OnboardingViewModel: ObservableObject {
   @Published var selectedGender: Gender?
   @Published var firstName: String = ""
   @Published var age: String = ""
-  @Published var selectedMoods: Set<Mood> = []
   @Published var selectedGoalRecency: GoalRecency?
   @Published var primaryGoal: String = ""
   @Published var goalVisualization: String = ""
   @Published var microAction: String = ""
   @Published var selectedCoachingStyle: CoachingStyle?
+  @Published var isRecording: Bool = false
+  
+  // Speech recognition
+  let speechManager: SpeechRecognitionManager
+  private var cancellables = Set<AnyCancellable>()
+  
+  init() {
+    self.speechManager = SpeechRecognitionManager()
+    
+    // Subscribe to speechManager's isRecording changes
+    speechManager.$isRecording
+      .sink { [weak self] isRecording in
+        self?.isRecording = isRecording
+      }
+      .store(in: &cancellables)
+  }
 
   var progress: Double {
     Double(currentStep.rawValue + 1) / Double(OnboardingStep.allCases.count)
@@ -135,8 +150,6 @@ class OnboardingViewModel: ObservableObject {
       return isValidAge
     case .welcomeIntro:
       return true
-    case .mood:
-      return !selectedMoods.isEmpty
     case .goalRecency:
       return selectedGoalRecency != nil
     case .goalWritingInfo:
@@ -171,21 +184,7 @@ class OnboardingViewModel: ObservableObject {
     currentStep = previousStep
   }
 
-  func toggleMood(_ mood: Mood) {
-    if selectedMoods.contains(mood) {
-      selectedMoods.remove(mood)
-    } else {
-      selectedMoods.insert(mood)
-    }
-  }
 
-  func isMoodSelected(_ mood: Mood) -> Bool {
-    selectedMoods.contains(mood)
-  }
-
-  var moodOptions: [Mood] {
-    Mood.allCases
-  }
 
   func selectGoalRecency(_ recency: GoalRecency) {
     selectedGoalRecency = recency
@@ -201,6 +200,51 @@ class OnboardingViewModel: ObservableObject {
 
   func selectCoachingStyle(_ style: CoachingStyle) {
     selectedCoachingStyle = style
+  }
+  
+  // MARK: - Voice Input Methods
+  func toggleVoiceRecording(for field: OnboardingStep) {
+    if speechManager.isRecording {
+      speechManager.stopRecording()
+      // Apply the transcribed text to the appropriate field
+      applyTranscribedText(for: field)
+    } else {
+      // Clear previous transcription if starting fresh
+      speechManager.clearTranscription()
+      
+      // If there's existing text, add it to the transcription manager
+      switch field {
+      case .goalVisualization:
+        if !goalVisualization.isEmpty {
+          speechManager.transcribedText = goalVisualization
+        }
+      case .microAction:
+        if !microAction.isEmpty {
+          speechManager.transcribedText = microAction
+        }
+      default:
+        break
+      }
+      
+      speechManager.startRecording()
+    }
+  }
+  
+  private func applyTranscribedText(for field: OnboardingStep) {
+    let transcribedText = speechManager.transcribedText.trimmingCharacters(in: .whitespacesAndNewlines)
+    
+    switch field {
+    case .goalVisualization:
+      if !transcribedText.isEmpty {
+        goalVisualization = transcribedText
+      }
+    case .microAction:
+      if !transcribedText.isEmpty {
+        microAction = transcribedText
+      }
+    default:
+      break
+    }
   }
 
   private var isValidAge: Bool {
