@@ -89,13 +89,6 @@ enum MotivationShift: String, CaseIterable {
   case less = "Less motivated"
 }
 
-enum ProcessDifficulty: String, CaseIterable {
-  case effortless = "Effortless — answers flowed"
-  case thoughtful = "Took some thought"
-  case deepReflection = "Deep reflection — worth it"
-  case draining = "Draining — too much right now"
-}
-
 enum OnboardingStep: Int, CaseIterable {
   case gender = 0
   case name = 1
@@ -109,9 +102,7 @@ enum OnboardingStep: Int, CaseIterable {
   case visualizationInfo = 9
   case microAction = 10
   case coachingStyle = 11
-  case accountability = 12
-  case processDifficulty = 13
-  case planCalculation = 14
+  case planCalculation = 12
 
   var totalSteps: Int {
     OnboardingStep.allCases.count
@@ -129,8 +120,6 @@ class OnboardingViewModel: ObservableObject {
   @Published var goalVisualization: String = ""
   @Published var microAction: String = ""
   @Published var selectedCoachingStyle: CoachingStyle?
-  @Published var accountabilityPreferences: Set<AccountabilityPreference> = []
-  @Published var processDifficulty: ProcessDifficulty?
 
   var progress: Double {
     Double(currentStep.rawValue + 1) / Double(OnboardingStep.allCases.count)
@@ -162,10 +151,6 @@ class OnboardingViewModel: ObservableObject {
       return !microAction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     case .coachingStyle:
       return selectedCoachingStyle != nil
-    case .accountability:
-      return !accountabilityPreferences.isEmpty
-    case .processDifficulty:
-      return processDifficulty != nil
     case .planCalculation:
       return true
     }
@@ -214,28 +199,8 @@ class OnboardingViewModel: ObservableObject {
     CoachingStyle.allCases
   }
 
-  var accountabilityOptions: [AccountabilityPreference] {
-    AccountabilityPreference.allCases
-  }
-
-  var difficultyOptions: [ProcessDifficulty] {
-    ProcessDifficulty.allCases
-  }
-
   func selectCoachingStyle(_ style: CoachingStyle) {
     selectedCoachingStyle = style
-  }
-
-  func toggleAccountability(_ preference: AccountabilityPreference) {
-    if accountabilityPreferences.contains(preference) {
-      accountabilityPreferences.remove(preference)
-    } else {
-      accountabilityPreferences.insert(preference)
-    }
-  }
-
-  func selectProcessDifficulty(_ difficulty: ProcessDifficulty) {
-    processDifficulty = difficulty
   }
 
   private var isValidAge: Bool {

@@ -13,40 +13,41 @@ struct OnboardingView: View {
   @State private var hasTriggeredPaywall = false
 
   var body: some View {
-    ZStack {
-      OnboardingBackground()
+    GeometryReader { geometry in
+      ZStack {
+        OnboardingBackground()
 
-      VStack(spacing: 0) {
-        OnboardingHeaderView(viewModel: viewModel)
-          .padding(.top, 64)
+        VStack(spacing: 0) {
+          OnboardingHeaderView(viewModel: viewModel)
+            .padding(.top, 64)
 
-        content
-          .padding(.top, 56)
-          .frame(maxWidth: .infinity, alignment: .leading)
+          content
+            .padding(.top, 56)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-        Spacer(minLength: 0)
+          Spacer(minLength: 0)
 
-        if viewModel.currentStep != .gender
-          && viewModel.currentStep != .goalRecency
-          && viewModel.currentStep != .coachingStyle
-          && viewModel.currentStep != .processDifficulty
-          && viewModel.currentStep != .planCalculation
-        {
-          ContinueButtonView(
-            title: "Continue",
-            isEnabled: viewModel.canContinue
-              && (viewModel.currentStep != .planCalculation || !hasTriggeredPaywall)
-          ) {
-            handleContinue()
+          if viewModel.currentStep != .gender
+            && viewModel.currentStep != .goalRecency
+            && viewModel.currentStep != .coachingStyle
+            && viewModel.currentStep != .planCalculation
+          {
+            ContinueButtonView(
+              title: "Continue",
+              isEnabled: viewModel.canContinue
+                && (viewModel.currentStep != .planCalculation || !hasTriggeredPaywall)
+            ) {
+              handleContinue()
+            }
+            .padding(.top, 24)
           }
-          .padding(.top, 24)
-        }
 
-        HomeIndicatorView()
-          .padding(.top, 11)
+          HomeIndicatorView()
+            .padding(.top, 11)
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 24)
       }
-      .padding(.horizontal, 20)
-      .padding(.bottom, 24)
     }
     .animation(.spring(response: 0.45, dampingFraction: 0.85), value: viewModel.currentStep)
     .animation(.easeInOut(duration: 0.2), value: viewModel.canContinue)
@@ -94,10 +95,6 @@ struct OnboardingView: View {
       }
     case .coachingStyle:
       CoachingStyleSelectionView(viewModel: viewModel)
-    case .accountability:
-      AccountabilityPreferenceSelectionView(viewModel: viewModel)
-    case .processDifficulty:
-      ProcessDifficultySelectionView(viewModel: viewModel)
     case .planCalculation:
       PlanCalculationView(viewModel: viewModel) {
         showPaywall()
@@ -154,14 +151,6 @@ struct OnboardingView: View {
         viewModel.nextStep()
       }
     case .coachingStyle:
-      withAnimation {
-        viewModel.nextStep()
-      }
-    case .accountability:
-      withAnimation {
-        viewModel.nextStep()
-      }
-    case .processDifficulty:
       withAnimation {
         viewModel.nextStep()
       }

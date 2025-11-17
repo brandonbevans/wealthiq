@@ -44,12 +44,13 @@ import SwiftUI
       textView.autocapitalizationType = autocapitalization
       textView.autocorrectionType = autocorrection
       textView.keyboardDismissMode = .interactive
-      textView.textContainerInset = UIEdgeInsets(top: 12, left: 12, bottom: 12, right: 12)
+      textView.textContainerInset = UIEdgeInsets(top: 16, left: 16, bottom: 16, right: 16)
       textView.textContainer.lineFragmentPadding = 0
       textView.adjustsFontForContentSizeCategory = true
       textView.showsVerticalScrollIndicator = false
       textView.alwaysBounceVertical = false
-      textView.isScrollEnabled = true
+      textView.isScrollEnabled = false
+      textView.contentInsetAdjustmentBehavior = .never
 
       let placeholderLabel = context.coordinator.placeholderLabel
       placeholderLabel.text = placeholder
@@ -105,7 +106,8 @@ import SwiftUI
 
       context.coordinator.updatePlaceholderVisibility(for: text)
 
-      Self.clampContentOffsetIfNeeded(textView)
+      // Force content offset to always be at top
+      textView.contentOffset = .zero
 
       DispatchQueue.main.async {
         if isFocused.wrappedValue && !textView.isFirstResponder {
@@ -147,7 +149,7 @@ import SwiftUI
         }
 
         updatePlaceholderVisibility(for: newText)
-        OnboardingTextArea.clampContentOffsetIfNeeded(textView)
+        textView.contentOffset = .zero
       }
 
       func textViewDidBeginEditing(_ textView: UITextView) {
@@ -160,7 +162,7 @@ import SwiftUI
           }
         }
         updatePlaceholderVisibility(for: textView.text)
-        OnboardingTextArea.clampContentOffsetIfNeeded(textView)
+        textView.contentOffset = .zero
       }
 
       func textViewDidEndEditing(_ textView: UITextView) {
@@ -173,7 +175,7 @@ import SwiftUI
           }
         }
         updatePlaceholderVisibility(for: textView.text)
-        OnboardingTextArea.clampContentOffsetIfNeeded(textView)
+        textView.contentOffset = .zero
       }
 
       func updatePlaceholderVisibility(for text: String) {
@@ -203,14 +205,10 @@ import SwiftUI
     }()
 
     fileprivate static func clampContentOffsetIfNeeded(_ textView: UITextView) {
-      let insets = textView.contentInset
-      let contentHeight = textView.contentSize.height + insets.top + insets.bottom
-      let boundsHeight = textView.bounds.height
-
-      if contentHeight <= boundsHeight + 0.5 {
-        if textView.contentOffset != .zero {
-          textView.setContentOffset(.zero, animated: false)
-        }
+      // Always keep the content offset at or above the top so the cursor
+      // doesn't drift upward when the keyboard appears.
+      if textView.contentOffset.y < 0 {
+        textView.setContentOffset(.zero, animated: false)
       }
     }
   }

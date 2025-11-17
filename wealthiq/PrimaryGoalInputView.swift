@@ -20,6 +20,8 @@ struct PrimaryGoalInputView: View {
         .font(.lora(24, weight: .semiBold))
         .foregroundColor(Color(red: 0.13, green: 0.06, blue: 0.16))
         .multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
 
       Text(
         "If you don't know immediately, that's okay. Take 2 minutes to think about it, and write down what you come up with."
@@ -28,19 +30,30 @@ struct PrimaryGoalInputView: View {
       .foregroundColor(Color(red: 0.25, green: 0.22, blue: 0.32))
       .multilineTextAlignment(.leading)
       .lineSpacing(6)
+      .fixedSize(horizontal: false, vertical: true)
+      .frame(maxWidth: .infinity, alignment: .leading)
 
-      GoalEditorContainer {
-        OnboardingTextArea(
-          text: $viewModel.primaryGoal,
-          placeholder: placeholderText,
-          isFocused: Binding(
-            get: { isEditorFocused },
-            set: { isEditorFocused = $0 }
-          )
-        )
+      ZStack {
+        GeometryReader { geometry in
+          GoalEditorContainer {
+            OnboardingTextArea(
+              text: $viewModel.primaryGoal,
+              placeholder: placeholderText,
+              isFocused: Binding(
+                get: { isEditorFocused },
+                set: { isEditorFocused = $0 }
+              )
+            )
+            .frame(height: 140)
+          }
+          .frame(width: geometry.size.width, height: 140)
+        }
         .frame(height: 140)
       }
+
+      Spacer()
     }
+    .ignoresSafeArea(.keyboard)
     .onAppear {
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
         isEditorFocused = true
@@ -74,6 +87,7 @@ private struct GoalEditorContainer<Content: View>: View {
           .padding(.horizontal, 4)
           .padding(.vertical, 2)
       )
+      .clipShape(RoundedRectangle(cornerRadius: 24))
   }
 }
 

@@ -1,8 +1,8 @@
 //
-//  CoachingAndAccountabilityViews.swift
+//  CoachingStyleSelectionView.swift
 //  wealthiq
 //
-//  Created by Brandon Bevans on 11/11/25.
+//  Recreated after splitting from the old CoachingAndAccountabilityViews file.
 //
 
 import SwiftUI
@@ -16,6 +16,7 @@ struct CoachingStyleSelectionView: View {
         .font(.lora(24, weight: .semiBold))
         .foregroundColor(Color(red: 0.13, green: 0.06, blue: 0.16))
         .multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
 
       VStack(spacing: 12) {
         ForEach(viewModel.coachingStyleOptions, id: \.rawValue) { style in
@@ -26,44 +27,12 @@ struct CoachingStyleSelectionView: View {
             withAnimation(.easeInOut(duration: 0.2)) {
               viewModel.selectCoachingStyle(style)
             }
-
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
               if viewModel.currentStep == .coachingStyle {
                 withAnimation {
                   viewModel.nextStep()
                 }
               }
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-struct AccountabilityPreferenceSelectionView: View {
-  @ObservedObject var viewModel: OnboardingViewModel
-
-  private let columns: [GridItem] = Array(
-    repeating: GridItem(.flexible(), spacing: 12),
-    count: 2
-  )
-
-  var body: some View {
-    VStack(alignment: .leading, spacing: 24) {
-      Text("How do you want accountability to feel?")
-        .font(.lora(24, weight: .semiBold))
-        .foregroundColor(Color(red: 0.13, green: 0.06, blue: 0.16))
-        .multilineTextAlignment(.leading)
-
-      LazyVGrid(columns: columns, alignment: .leading, spacing: 12) {
-        ForEach(viewModel.accountabilityOptions) { preference in
-          GradientSelectableChip(
-            title: preference.rawValue,
-            isSelected: viewModel.accountabilityPreferences.contains(preference)
-          ) {
-            withAnimation(.easeInOut(duration: 0.2)) {
-              viewModel.toggleAccountability(preference)
             }
           }
         }
@@ -117,6 +86,12 @@ private struct SelectionPill: View {
     }
     .buttonStyle(.plain)
   }
+}
+
+#Preview {
+  CoachingStyleSelectionView(viewModel: OnboardingViewModel())
+    .padding(20)
+    .background(Color.white)
 }
 
 

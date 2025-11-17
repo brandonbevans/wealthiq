@@ -20,19 +20,30 @@ struct MicroActionInputView: View {
         .font(.lora(24, weight: .semiBold))
         .foregroundColor(Color(red: 0.13, green: 0.06, blue: 0.16))
         .multilineTextAlignment(.leading)
+        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
 
-      MicroActionEditor {
-        OnboardingTextArea(
-          text: $viewModel.microAction,
-          placeholder: placeholderText,
-          isFocused: Binding(
-            get: { isEditorFocused },
-            set: { isEditorFocused = $0 }
-          )
-        )
+      ZStack {
+        GeometryReader { geometry in
+          MicroActionEditor {
+            OnboardingTextArea(
+              text: $viewModel.microAction,
+              placeholder: placeholderText,
+              isFocused: Binding(
+                get: { isEditorFocused },
+                set: { isEditorFocused = $0 }
+              )
+            )
+            .frame(height: 120)
+          }
+          .frame(width: geometry.size.width, height: 120)
+        }
         .frame(height: 120)
       }
+
+      Spacer()
     }
+    .ignoresSafeArea(.keyboard)
     .onAppear {
       DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
         isEditorFocused = true
@@ -66,6 +77,7 @@ private struct MicroActionEditor<Content: View>: View {
           .padding(.horizontal, 4)
           .padding(.vertical, 2)
       )
+      .clipShape(RoundedRectangle(cornerRadius: 24))
   }
 }
 
