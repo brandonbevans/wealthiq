@@ -82,7 +82,7 @@ struct HomeScreen: View {
             .foregroundColor(Color(red: 0.36, green: 0.33, blue: 0.46))
             .italic()
           
-          NavigationLink(destination: ConversationalAIExampleView()) {
+          NavigationLink(destination: CoachChat()) {
             Text("Start Conversation")
               .font(.system(size: 18, weight: .semibold, design: .rounded))
               .foregroundColor(.white)

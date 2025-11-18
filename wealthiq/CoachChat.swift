@@ -1,5 +1,5 @@
 //
-//  ConversationalAIExampleView.swift
+//  CoachChat.swift
 //  wealthiq
 //
 //  Copied from ElevenLabs ConversationalAISwift example:
@@ -21,54 +21,154 @@ enum ConnectionState {
   case disconnected
 }
 
-// MARK: - Orb UI
+// MARK: - Orb UI with Agent State Animation
 
-enum OrbMode {
-  case listening
-  case speaking
-}
-
-struct OrbView: View {
-  let mode: OrbMode
-  let audioLevel: Float
-  
-  private var iconName: String {
-    switch mode {
-    case .listening:
-      return "waveform"
-    case .speaking:
-      return "speaker.wave.2.fill"
-    }
-  }
-  
-  private var scale: CGFloat {
-    0.9 + CGFloat(audioLevel * 3)
-  }
+struct AnimatedOrbView: View {
+  let agentState: ElevenLabs.AgentState
+  @State private var pulseAmount: CGFloat = 1.0
+  @State private var rotation: Double = 0
   
   var body: some View {
     ZStack {
-      // Orb image with glow effect
-      Image("orb")
-        .resizable()
-        .aspectRatio(contentMode: .fit)
-        .frame(height: 200)
-        .shadow(color: .purple.opacity(0.3), radius: 20, x: 0, y: 10)
-      
-      // White circle background with blur effect
+      glowRings
+      mainOrb
+      shimmerEffect
+      stateIcon
+    }
+    .onAppear {
+      startAnimation()
+    }
+    .onChange(of: agentState) { _, _ in
+      startAnimation()
+    }
+  }
+  
+  private var glowRings: some View {
+    ForEach(0..<3) { index in
       Circle()
-        .fill(.white)
-        .frame(width: 56, height: 56)
-        .shadow(color: .black.opacity(0.15), radius: 8, x: 0, y: 4)
-        .blur(radius: 0.5)
-        .scaleEffect(scale)
-        .animation(.spring(response: 0.1, dampingFraction: 0.8), value: scale)
-      
-      // Mode icon
-      Image(systemName: iconName)
-        .font(.system(size: 28, weight: .medium))
-        .foregroundColor(.black)
-        .scaleEffect(scale)
-        .animation(.spring(response: 0.1, dampingFraction: 0.8), value: scale)
+        .stroke(lineWidth: 2)
+        .foregroundStyle(ringGradient)
+        .frame(width: baseSize + CGFloat(index * 30), height: baseSize + CGFloat(index * 30))
+        .scaleEffect(pulseAmount + CGFloat(index) * 0.1)
+        .opacity(1.0 - Double(index) * 0.3)
+    }
+  }
+  
+  private var ringGradient: LinearGradient {
+    LinearGradient(
+      colors: [
+        Color(red: 0.39, green: 0.27, blue: 0.92).opacity(0.6),
+        Color.purple.opacity(0.3)
+      ],
+      startPoint: .topLeading,
+      endPoint: .bottomTrailing
+    )
+  }
+  
+  private var mainOrb: some View {
+    Circle()
+      .fill(orbGradient)
+      .frame(width: baseSize, height: baseSize)
+      .shadow(color: Color(red: 0.39, green: 0.27, blue: 0.92).opacity(0.5), radius: 20, x: 0, y: 10)
+      .scaleEffect(pulseAmount)
+  }
+  
+  private var orbGradient: RadialGradient {
+    RadialGradient(
+      colors: [
+        Color(red: 0.5, green: 0.3, blue: 1.0),
+        Color(red: 0.39, green: 0.27, blue: 0.92),
+        Color(red: 0.3, green: 0.2, blue: 0.7)
+      ],
+      center: .topLeading,
+      startRadius: 0,
+      endRadius: 100
+    )
+  }
+  
+  private var shimmerEffect: some View {
+    Circle()
+      .fill(shimmerGradient)
+      .frame(width: baseSize * 0.6, height: baseSize * 0.6)
+      .rotationEffect(.degrees(rotation))
+      .blur(radius: 8)
+  }
+  
+  private var shimmerGradient: AngularGradient {
+    AngularGradient(
+      colors: [
+        .white.opacity(0.8),
+        .clear,
+        .white.opacity(0.4),
+        .clear
+      ],
+      center: .center
+    )
+  }
+  
+  private var stateIcon: some View {
+    Image(systemName: iconName)
+      .font(.system(size: 32, weight: .semibold))
+      .foregroundColor(.white)
+      .scaleEffect(pulseAmount)
+  }
+  
+  private var baseSize: CGFloat { 160 }
+  
+  private var iconName: String {
+    switch agentState {
+    case .listening:
+      return "waveform"
+    case .speaking:
+      return "speaker.wave.3.fill"
+    case .thinking:
+      return "brain"
+    @unknown default:
+      return "waveform"
+    }
+  }
+  
+  private var animationSpeed: Double {
+    switch agentState {
+    case .listening:
+      return 2.0
+    case .speaking:
+      return 0.8
+    case .thinking:
+      return 1.5
+    @unknown default:
+      return 2.0
+    }
+  }
+  
+  private var pulseRange: (min: CGFloat, max: CGFloat) {
+    switch agentState {
+    case .listening:
+      return (0.95, 1.05)
+    case .speaking:
+      return (0.9, 1.15)
+    case .thinking:
+      return (0.92, 1.08)
+    @unknown default:
+      return (0.95, 1.05)
+    }
+  }
+  
+  private func startAnimation() {
+    // Pulse animation
+    withAnimation(
+      .easeInOut(duration: animationSpeed)
+      .repeatForever(autoreverses: true)
+    ) {
+      pulseAmount = pulseRange.max
+    }
+    
+    // Rotation animation for shimmer
+    withAnimation(
+      .linear(duration: 4)
+      .repeatForever(autoreverses: false)
+    ) {
+      rotation = 360
     }
   }
 }
@@ -84,8 +184,19 @@ final class OrbConversationViewModel: ObservableObject {
   @Published var connectionState: ConnectionState = .idle
   @Published var errorMessage: String?
   @Published var isInteractive: Bool = false
+  @Published var userProfile: SupabaseManager.UserProfile?
   
   private var cancellables = Set<AnyCancellable>()
+  
+  func loadUserProfile() async {
+    do {
+      userProfile = try await SupabaseManager.shared.fetchUserProfile()
+      print("✅ Loaded user profile: \(userProfile?.firstName ?? "Unknown")")
+    } catch {
+      print("⚠️ Failed to load user profile: \(error)")
+      errorMessage = "Failed to load profile data"
+    }
+  }
   
   func toggleConversation(agentId: String) async {
     if isConnected {
@@ -100,8 +211,30 @@ final class OrbConversationViewModel: ObservableObject {
     errorMessage = nil
     
     do {
+      // Prepare dynamic variables to pass to the agent
+      var dynamicVariables: [String: String] = [:]
+      
+      // Add firstname from user profile if available
+      if let firstName = userProfile?.firstName {
+        dynamicVariables["firstname"] = firstName
+        print("📤 Passing dynamic variable to agent: firstname = \(firstName)")
+      }
+      
+      // Add primary goal from user profile if available
+      if let primaryGoal = userProfile?.primaryGoal {
+        dynamicVariables["primary_goal"] = primaryGoal
+        print("📤 Passing dynamic variable to agent: primary_goal = \(primaryGoal)")
+      }
+      
+      // Add coaching style from user profile if available
+      if let coachingStyle = userProfile?.coachingStyle {
+        dynamicVariables["coaching_style"] = coachingStyle
+        print("📤 Passing dynamic variable to agent: coaching_style = \(coachingStyle)")
+      }
+      
       let config = ConversationConfig(
-        conversationOverrides: ConversationOverrides(textOnly: false)
+        conversationOverrides: ConversationOverrides(textOnly: false),
+        dynamicVariables: dynamicVariables
       )
       
       let conv = try await ElevenLabs.startConversation(
@@ -249,25 +382,15 @@ struct AgentListeningIndicator: View {
 
 // MARK: - Main View
 
-struct ConversationalAIExampleView: View {
+struct CoachChat: View {
   @State private var currentAgentIndex = 0
   @StateObject private var viewModel = OrbConversationViewModel()
   
   let agents = [
     Agent(
       id: "agent_2601ka9xkvjge6vswgmh8av21061",
-      name: "Matilda",
-      description: "Math tutor"
-    ),
-    Agent(
-      id: "agent_2601ka9xkvjge6vswgmh8av21061",
-      name: "Eric",
-      description: "Support agent"
-    ),
-    Agent(
-      id: "agent_2601ka9xkvjge6vswgmh8av21061",
-      name: "Callum",
-      description: "Video game character"
+      name: "Coach",
+      description: "Your personal coach"
     )
   ]
   
@@ -321,6 +444,17 @@ struct ConversationalAIExampleView: View {
     .animation(.spring(response: 0.3, dampingFraction: 0.8), value: viewModel.errorMessage)
     .navigationTitle("Conversation")
     .navigationBarTitleDisplayMode(.inline)
+    .onAppear {
+      Task {
+        // Load user profile first
+        await viewModel.loadUserProfile()
+        
+        // Auto-start conversation when view appears
+        if !viewModel.isConnected && viewModel.connectionState == .idle {
+          beginConversation(agent: agents[currentAgentIndex])
+        }
+      }
+    }
   }
   
   @ViewBuilder
@@ -340,11 +474,9 @@ struct ConversationalAIExampleView: View {
         
         // Main content
         VStack(spacing: 24) {
-          OrbView(
-            mode: .listening,
-            audioLevel: 0.05
-          )
-          .padding(.bottom, 12)
+          AnimatedOrbView(agentState: .listening)
+            .frame(width: 200, height: 200)
+            .padding(.bottom, 12)
           
           VStack(spacing: 8) {
             Text(agents[currentAgentIndex].name)
@@ -417,11 +549,11 @@ struct ConversationalAIExampleView: View {
         VStack(spacing: 24) {
           Spacer()
           
-          OrbView(
-            mode: viewModel.isSpeaking ? .speaking : .listening,
-            audioLevel: viewModel.audioLevel
-          )
-          .padding(.bottom, 12)
+          // Animated orb that reacts to agent state
+          AnimatedOrbView(agentState: viewModel.conversation?.agentState ?? .listening)
+            .frame(width: 200, height: 200)
+            .padding(.bottom, 12)
+            .animation(.spring(response: 0.3, dampingFraction: 0.7), value: viewModel.conversation?.agentState)
           
           VStack(spacing: 8) {
             Text(agents[currentAgentIndex].name)
@@ -540,7 +672,7 @@ struct Agent {
 }
 
 #Preview {
-  ConversationalAIExampleView()
+  CoachChat()
 }
 
 
