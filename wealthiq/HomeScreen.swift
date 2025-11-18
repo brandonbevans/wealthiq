@@ -13,7 +13,8 @@ struct HomeScreen: View {
   @State private var showingDebugMenu = false
   
   var body: some View {
-    ZStack {
+    NavigationStack {
+      ZStack {
       // Background gradient
       LinearGradient(
         colors: [
@@ -80,52 +81,65 @@ struct HomeScreen: View {
             .font(.system(size: 16, weight: .medium))
             .foregroundColor(Color(red: 0.36, green: 0.33, blue: 0.46))
             .italic()
+          
+          NavigationLink(destination: ConversationalAIExampleView()) {
+            Text("Start Conversation")
+              .font(.system(size: 18, weight: .semibold, design: .rounded))
+              .foregroundColor(.white)
+              .padding(.horizontal, 32)
+              .padding(.vertical, 14)
+              .background(Color(red: 0.39, green: 0.27, blue: 0.92))
+              .cornerRadius(14)
+              .shadow(color: Color.black.opacity(0.1), radius: 6, x: 0, y: 3)
+          }
+          .padding(.top, 8)
         }
         .padding(.bottom, 60)
       }
-    }
-    .task {
-      await loadUserName()
-    }
-    #if DEBUG
-    .actionSheet(isPresented: $showingDebugMenu) {
-      ActionSheet(
-        title: Text("Debug Menu"),
-        message: Text("Developer options"),
-        buttons: [
-          .destructive(Text("Sign Out")) {
-            Task {
-              do {
-                try await supabaseManager.signOut()
-                print("✅ Signed out successfully")
-                // Post notification to refresh auth state
-                NotificationCenter.default.post(name: .debugAuthCompleted, object: nil)
-              } catch {
-                print("❌ Sign out failed: \(error)")
-              }
-            }
-          },
-          .default(Text("Reset Onboarding")) {
-            Task {
-              do {
-                // Clear onboarding completed flag
-                if let userId = try? await supabaseManager.getCurrentUserId() {
-                  // You could add a method to reset onboarding_completed to false
-                  print("🔄 Reset onboarding for user: \(userId)")
+      }
+      .task {
+        await loadUserName()
+      }
+      #if DEBUG
+      .actionSheet(isPresented: $showingDebugMenu) {
+        ActionSheet(
+          title: Text("Debug Menu"),
+          message: Text("Developer options"),
+          buttons: [
+            .destructive(Text("Sign Out")) {
+              Task {
+                do {
+                  try await supabaseManager.signOut()
+                  print("✅ Signed out successfully")
+                  // Post notification to refresh auth state
+                  NotificationCenter.default.post(name: .debugAuthCompleted, object: nil)
+                } catch {
+                  print("❌ Sign out failed: \(error)")
                 }
-                // Sign out to restart flow
-                try await supabaseManager.signOut()
-                NotificationCenter.default.post(name: .debugAuthCompleted, object: nil)
-              } catch {
-                print("❌ Reset failed: \(error)")
               }
-            }
-          },
-          .cancel()
-        ]
-      )
+            },
+            .default(Text("Reset Onboarding")) {
+              Task {
+                do {
+                  // Clear onboarding completed flag
+                  if let userId = try? await supabaseManager.getCurrentUserId() {
+                    // You could add a method to reset onboarding_completed to false
+                    print("🔄 Reset onboarding for user: \(userId)")
+                  }
+                  // Sign out to restart flow
+                  try await supabaseManager.signOut()
+                  NotificationCenter.default.post(name: .debugAuthCompleted, object: nil)
+                } catch {
+                  print("❌ Reset failed: \(error)")
+                }
+              }
+            },
+            .cancel()
+          ]
+        )
+      }
+      #endif
     }
-    #endif
   }
   
   private func loadUserName() async {

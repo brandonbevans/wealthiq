@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		602E2C5B2ECBFFEA009CEC19 /* JWTKit in Frameworks */ = {isa = PBXBuildFile; productRef = 602E2C5A2ECBFFEA009CEC19 /* JWTKit */; };
 		60C80DF62EC2857B00090352 /* SuperwallKit in Frameworks */ = {isa = PBXBuildFile; productRef = 60C80DF52EC2857B00090352 /* SuperwallKit */; };
 		60D0C0012F2A5B120044D7C0 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 60D0C0022F2A5B120044D7C0 /* Supabase */; };
 		60F9E6DF2ECBB6EB00B85991 /* Auth in Frameworks */ = {isa = PBXBuildFile; productRef = 60F9E6DE2ECBB6EB00B85991 /* Auth */; };
@@ -14,6 +15,8 @@
 		60F9E6E32ECBB6EB00B85991 /* PostgREST in Frameworks */ = {isa = PBXBuildFile; productRef = 60F9E6E22ECBB6EB00B85991 /* PostgREST */; };
 		60F9E6E52ECBB6EB00B85991 /* Realtime in Frameworks */ = {isa = PBXBuildFile; productRef = 60F9E6E42ECBB6EB00B85991 /* Realtime */; };
 		60F9E6E72ECBB6EB00B85991 /* Storage in Frameworks */ = {isa = PBXBuildFile; productRef = 60F9E6E62ECBB6EB00B85991 /* Storage */; };
+		60F9E7642ECBE39C00B85991 /* ElevenLabs in Frameworks */ = {isa = PBXBuildFile; productRef = 60F9E7632ECBE39C00B85991 /* ElevenLabs */; };
+		60F9E7672ECBE71200B85991 /* LiveKit in Frameworks */ = {isa = PBXBuildFile; productRef = 60F9E7662ECBE71200B85991 /* LiveKit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,8 +52,11 @@
 				60C80DF62EC2857B00090352 /* SuperwallKit in Frameworks */,
 				60D0C0012F2A5B120044D7C0 /* Supabase in Frameworks */,
 				60F9E6E72ECBB6EB00B85991 /* Storage in Frameworks */,
+				60F9E7642ECBE39C00B85991 /* ElevenLabs in Frameworks */,
 				60F9E6E12ECBB6EB00B85991 /* Functions in Frameworks */,
+				602E2C5B2ECBFFEA009CEC19 /* JWTKit in Frameworks */,
 				60F9E6E52ECBB6EB00B85991 /* Realtime in Frameworks */,
+				60F9E7672ECBE71200B85991 /* LiveKit in Frameworks */,
 				60F9E6DF2ECBB6EB00B85991 /* Auth in Frameworks */,
 				60F9E6E32ECBB6EB00B85991 /* PostgREST in Frameworks */,
 			);
@@ -102,6 +108,9 @@
 				60F9E6E22ECBB6EB00B85991 /* PostgREST */,
 				60F9E6E42ECBB6EB00B85991 /* Realtime */,
 				60F9E6E62ECBB6EB00B85991 /* Storage */,
+				60F9E7632ECBE39C00B85991 /* ElevenLabs */,
+				60F9E7662ECBE71200B85991 /* LiveKit */,
+				602E2C5A2ECBFFEA009CEC19 /* JWTKit */,
 			);
 			productName = wealthiq;
 			productReference = 60FFAB1E2EC221610044D7C0 /* wealthiq.app */;
@@ -134,6 +143,9 @@
 			packageReferences = (
 				60C80DF42EC2857A00090352 /* XCRemoteSwiftPackageReference "Superwall-iOS" */,
 				60D0C0032F2A5B120044D7C0 /* XCRemoteSwiftPackageReference "supabase-swift" */,
+				60F9E7622ECBE39C00B85991 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */,
+				60F9E7652ECBE71200B85991 /* XCRemoteSwiftPackageReference "client-sdk-swift" */,
+				602E2C592ECBFFEA009CEC19 /* XCRemoteSwiftPackageReference "jwt-kit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 60FFAB1F2EC221610044D7C0 /* Products */;
@@ -301,7 +313,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = wealthiq/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = WealthIQ;
+				INFOPLIST_KEY_CFBundleDisplayName = Prime;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "WealthIQ needs camera access to capture photos for your Golden Hour practice reflections.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "WealthIQ needs microphone access to record audio reflections during your Golden Hour practice.";
@@ -320,12 +332,16 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.daytwo.wealthiq;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -341,7 +357,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = wealthiq/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = WealthIQ;
+				INFOPLIST_KEY_CFBundleDisplayName = Prime;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_NSCameraUsageDescription = "WealthIQ needs camera access to capture photos for your Golden Hour practice reflections.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "WealthIQ needs microphone access to record audio reflections during your Golden Hour practice.";
@@ -360,12 +376,16 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.daytwo.wealthiq;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -393,6 +413,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		602E2C592ECBFFEA009CEC19 /* XCRemoteSwiftPackageReference "jwt-kit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/vapor/jwt-kit";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.3.0;
+			};
+		};
 		60C80DF42EC2857A00090352 /* XCRemoteSwiftPackageReference "Superwall-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/superwall/Superwall-iOS";
@@ -409,9 +437,30 @@
 				minimumVersion = 2.0.0;
 			};
 		};
+		60F9E7622ECBE39C00B85991 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/elevenlabs/elevenlabs-swift-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.0.0;
+			};
+		};
+		60F9E7652ECBE71200B85991 /* XCRemoteSwiftPackageReference "client-sdk-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/livekit/client-sdk-swift";
+			requirement = {
+				kind = exactVersion;
+				version = 2.6.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		602E2C5A2ECBFFEA009CEC19 /* JWTKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 602E2C592ECBFFEA009CEC19 /* XCRemoteSwiftPackageReference "jwt-kit" */;
+			productName = JWTKit;
+		};
 		60C80DF52EC2857B00090352 /* SuperwallKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 60C80DF42EC2857A00090352 /* XCRemoteSwiftPackageReference "Superwall-iOS" */;
@@ -441,6 +490,16 @@
 		60F9E6E62ECBB6EB00B85991 /* Storage */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = Storage;
+		};
+		60F9E7632ECBE39C00B85991 /* ElevenLabs */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60F9E7622ECBE39C00B85991 /* XCRemoteSwiftPackageReference "elevenlabs-swift-sdk" */;
+			productName = ElevenLabs;
+		};
+		60F9E7662ECBE71200B85991 /* LiveKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 60F9E7652ECBE71200B85991 /* XCRemoteSwiftPackageReference "client-sdk-swift" */;
+			productName = LiveKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -1,9 +1,10 @@
 'use client';
 
 import { supabase } from '@/lib/supabase';
+import { useConversation } from '@elevenlabs/react';
 import { Session } from '@supabase/supabase-js';
 import clsx from 'clsx';
-import { FormEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
 
 type ElevenLabsEvent =
   | { type: 'ping'; ping_event: { event_id: number | string } }
@@ -16,16 +17,11 @@ type ElevenLabsEvent =
 
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'error';
 
-const API_BASE = process.env.NEXT_PUBLIC_CONVERSATION_API_URL ?? 'http://localhost:8000';
-
 const ConversationPage = () => {
   const [session, setSession] = useState<Session | null>(null);
   const [status, setStatus] = useState<ConnectionStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [logs, setLogs] = useState<string[]>([]);
-  const websocketRef = useRef<WebSocket | null>(null);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const audioQueueRef = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     let mounted = true;
@@ -46,45 +42,6 @@ const ConversationPage = () => {
     setLogs((prev) => [message, ...prev].slice(0, 40));
   }, []);
 
-  const playAudio = useCallback(async (base64: string) => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new AudioContext();
-    }
-    const ctx = audioCtxRef.current;
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
-    const buffer = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)).buffer;
-    const audioBuffer = await ctx.decodeAudioData(buffer.slice(0));
-    await new Promise<void>((resolve) => {
-      const source = ctx.createBufferSource();
-      source.buffer = audioBuffer;
-      source.connect(ctx.destination);
-      source.onended = () => resolve();
-      source.start();
-    });
-  }, []);
-
-  const enqueueAudio = useCallback(
-    (base64: string) => {
-      audioQueueRef.current = audioQueueRef.current
-        .catch((err) => {
-          console.error('Audio queue error', err);
-        })
-        .then(() => playAudio(base64));
-    },
-    [playAudio]
-  );
-
-  const closeConversation = useCallback(() => {
-    websocketRef.current?.close();
-    websocketRef.current = null;
-    audioQueueRef.current = Promise.resolve();
-    setStatus('idle');
-  }, []);
-
-  useEffect(() => () => closeConversation(), [closeConversation]);
-
   const ensureSession = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
@@ -93,75 +50,86 @@ const ConversationPage = () => {
     return data.session;
   }, []);
 
-  const handleMessage = useCallback(
-    (event: MessageEvent) => {
+  const conversation = useConversation({
+    onConnect: () => {
+      setStatus('connected');
+      appendLog('Connected to ElevenLabs conversation');
+    },
+    onDisconnect: () => {
+      setStatus('idle');
+      appendLog('Conversation ended');
+    },
+    onError: (err) => {
+      console.error(err);
+      setStatus('error');
+      setError('An error occurred during the conversation');
+    },
+    onMessage: (message: ElevenLabsEvent) => {
       try {
-        const message: ElevenLabsEvent = JSON.parse(event.data);
-        if (message.type === 'ping' && 'ping_event' in message) {
-          websocketRef.current?.send(
-            JSON.stringify({
-              type: 'pong',
-              pong_event: { event_id: message.ping_event.event_id },
-            })
-          );
-          return;
-        }
         if (message.type === 'agent_response' && 'agent_response_event' in message) {
-          appendLog(`Agent: ${message.agent_response_event.agent_response}`);
+          const evt = message.agent_response_event as { agent_response?: unknown };
+          if (typeof evt.agent_response === 'string') {
+            appendLog(`Agent: ${evt.agent_response}`);
+          }
         }
         if (message.type === 'user_transcript' && 'user_transcription_event' in message) {
-          appendLog(`You: ${message.user_transcription_event.user_transcript}`);
-        }
-        if (message.type === 'audio' && 'audio_event' in message) {
-          enqueueAudio(message.audio_event.audio_base_64);
+          const evt = message.user_transcription_event as { user_transcript?: unknown };
+          if (typeof evt.user_transcript === 'string') {
+            appendLog(`You: ${evt.user_transcript}`);
+          }
         }
       } catch (err) {
-        console.error('Failed to parse event', err);
+        console.error('Failed to handle ElevenLabs event', err);
       }
     },
-    [appendLog, enqueueAudio]
-  );
+  });
+
+  const requestMicrophonePermission = useCallback(async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ audio: true });
+      return true;
+    } catch {
+      console.error('Microphone permission denied');
+      return false;
+    }
+  }, []);
+
+  const getSignedUrl = useCallback(async (): Promise<string> => {
+    const response = await fetch('/api/signed-url');
+    if (!response.ok) {
+      throw new Error('Failed to get signed URL');
+    }
+    const data = await response.json();
+    return data.signedUrl as string;
+  }, []);
 
   const startConversation = useCallback(async () => {
     try {
       setStatus('connecting');
       setError(null);
-      const activeSession = await ensureSession();
-      const response = await fetch(`${API_BASE}/api/conversation/session`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${activeSession.access_token}`,
-        },
-      });
 
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        throw new Error(body.detail ?? 'Unable to start conversation');
+      await ensureSession();
+      const hasPermission = await requestMicrophonePermission();
+      if (!hasPermission) {
+        throw new Error('Microphone permission denied');
       }
 
-      const payload = await response.json();
-      const ws = new WebSocket(payload.ws_url as string);
-      websocketRef.current = ws;
-
-      ws.onopen = () => {
-        setStatus('connected');
-        appendLog('Connected to conversation service');
-      };
-      ws.onerror = (event) => {
-        console.error(event);
-        setStatus('error');
-        setError('WebSocket error');
-      };
-      ws.onclose = () => {
-          setStatus('idle');
-      };
-      ws.onmessage = handleMessage;
+      const signedUrl = await getSignedUrl();
+      await conversation.startSession({ signedUrl });
     } catch (err) {
       console.error(err);
       setStatus('error');
       setError(err instanceof Error ? err.message : 'Failed to start conversation');
     }
-  }, [appendLog, ensureSession, handleMessage]);
+  }, [conversation, ensureSession, getSignedUrl, requestMicrophonePermission]);
+
+  const closeConversation = useCallback(async () => {
+    try {
+      await conversation.endSession();
+    } finally {
+      setStatus('idle');
+    }
+  }, [conversation]);
 
   if (!session) {
     return (
@@ -196,6 +164,20 @@ const ConversationPage = () => {
           <StatusBadge status={status} />
           {error && <p className="text-sm text-red-400">{error}</p>}
         </div>
+
+        <div className="mt-6 flex flex-col items-center gap-4">
+          <div
+            className={clsx(
+              'h-24 w-24 rounded-full border-2 border-amber-300/60 transition-all',
+              status === 'connected' && conversation.isSpeaking
+                ? 'bg-amber-300/40 shadow-[0_0_40px_rgba(252,211,77,0.8)]'
+                : status === 'connected'
+                  ? 'bg-emerald-300/10'
+                  : 'bg-transparent'
+            )}
+          />
+        </div>
+
         <div className="mt-6 flex flex-wrap gap-4">
           <button
             onClick={startConversation}
