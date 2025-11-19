@@ -165,15 +165,16 @@ class SupabaseManager: ObservableObject {
   func fetchUserProfile() async throws -> UserProfile? {
     let userId = try await getCurrentUserId()
 
-    let response: PostgrestResponse<UserProfile> =
+    // Use limit(1) instead of single() to avoid throwing error when no profile exists
+    let response: PostgrestResponse<[UserProfile]> =
       try await client
       .from("user_profiles")
       .select()
       .eq("user_id", value: userId.uuidString)
-      .single()
+      .limit(1)
       .execute()
 
-    return response.value
+    return response.value.first
   }
 
   // MARK: - Goal Operations
@@ -269,6 +270,11 @@ class SupabaseManager: ObservableObject {
   /// Sign in an existing user
   func signIn(email: String, password: String) async throws {
     try await client.auth.signIn(email: email, password: password)
+  }
+
+  /// Sign in with Apple ID token
+  func signInWithApple(idToken: String, nonce: String) async throws {
+    try await client.auth.signInWithIdToken(credentials: .init(provider: .apple, idToken: idToken, nonce: nonce))
   }
 
   /// Sign out the current user

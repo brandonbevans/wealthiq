@@ -46,9 +46,14 @@ struct ContentView: View {
               }
             }
         #else
-          // In production, you would show your normal auth flow
-          // For now, just show onboarding
-          OnboardingView()
+          // In production, show Sign in with Apple
+          SignInView()
+            .onReceive(NotificationCenter.default.publisher(for: .debugAuthCompleted)) { _ in
+              // Re-check authentication after auth completes
+              Task {
+                await checkAuthentication()
+              }
+            }
         #endif
       }
     }

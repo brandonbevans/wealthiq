@@ -120,25 +120,6 @@ struct DebugAuthView: View {
                 .cornerRadius(12)
                 .disabled(email.isEmpty || isLoading)
                 
-                // Anonymous sign in option
-                Button {
-                    Task {
-                        await authenticateAnonymously()
-                    }
-                } label: {
-                    HStack {
-                        Image(systemName: "person.fill.questionmark")
-                        Text("Continue Anonymously")
-                            .fontWeight(.medium)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(Color.gray.opacity(0.1))
-                    .foregroundStyle(.primary)
-                    .cornerRadius(12)
-                }
-                .disabled(isLoading)
-                
                 // Messages
                 if let error = errorMessage {
                     HStack {
@@ -243,36 +224,6 @@ struct DebugAuthView: View {
         } catch {
             errorMessage = "Authentication failed: \(error.localizedDescription)"
             print("❌ Authentication error: \(error)")
-        }
-        
-        isLoading = false
-    }
-    
-    private func authenticateAnonymously() async {
-        isLoading = true
-        errorMessage = nil
-        successMessage = nil
-        
-        do {
-            // Generate a random email for anonymous user
-            let randomId = UUID().uuidString.prefix(8)
-            let anonymousEmail = "anon-\(randomId)@prime.local"
-            
-            // Create anonymous user with generated email
-            try await supabaseManager.signUp(email: anonymousEmail, password: "anonymous-\(randomId)")
-            try await supabaseManager.signIn(email: anonymousEmail, password: "anonymous-\(randomId)")
-            
-            successMessage = "Signed in anonymously"
-            isAuthenticated = true
-            
-            // Navigate after successful auth
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                NotificationCenter.default.post(name: .debugAuthCompleted, object: nil)
-            }
-            
-        } catch {
-            errorMessage = "Anonymous sign in failed: \(error.localizedDescription)"
-            print("❌ Anonymous auth error: \(error)")
         }
         
         isLoading = false
