@@ -232,6 +232,9 @@ final class OrbConversationViewModel: ObservableObject {
       
       try configureAudioSession()
       
+      // Start music immediately
+      conversationAudioEngine.startMusic()
+      
       // Prepare dynamic variables to pass to the agent
       var dynamicVariables: [String: String] = [:]
       
@@ -267,7 +270,7 @@ final class OrbConversationViewModel: ObservableObject {
       lastConversationStartDate = Date()
       isInteractive = true
       setupObservers(for: conv)
-      conversationAudioEngine.start(for: conv)
+      conversationAudioEngine.attach(conversation: conv)
     } catch {
       print("Error starting conversation: \(error)")
       errorMessage = error.localizedDescription

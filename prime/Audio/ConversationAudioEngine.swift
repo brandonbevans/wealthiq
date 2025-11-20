@@ -80,16 +80,21 @@ final class ConversationAudioEngine: NSObject {
   private let processingQueue = DispatchQueue(label: "com.prime.audio.conversation-engine")
   
   private let idleVolume: Float = 0.35
-  private let aiSpeakingVolume: Float = 0.20
+  private let aiSpeakingVolume: Float = 0.05
   private let micSpeakingVolume: Float = 0.10
-  private let aiThreshold: Float = 0.02
-  private let micThreshold: Float = 0.015
+  private let aiRmsThreshold: Float = 0.001
+  private let micRmsThreshold: Float = 0.0015
+  private let aiDbThreshold: Float = -60
+  private let micDbThreshold: Float = -50
   
   private var aiLevel: Float = 0
   private var micLevel: Float = 0
   private var targetVolume: Float = 0.35
   private var currentVolume: Float = 0.35
   private var smoothingTimer: DispatchSourceTimer?
+  private let voiceGateDelay: TimeInterval = 1.0
+  private var voiceGateReady = false
+  private var pendingVoiceBuffers: [(buffer: AVAudioPCMBuffer, rms: Float)] = []
   
   private var isConfigured = false
   private var isRunning = false
@@ -100,7 +105,7 @@ final class ConversationAudioEngine: NSObject {
     remoteProcessor.owner = self
   }
   
-  func start(for _: Conversation) {
+  func startMusic() {
     processingQueue.async {
       if self.isRunning {
         self.stopLocked()
@@ -109,9 +114,16 @@ final class ConversationAudioEngine: NSObject {
       self.configureEngineIfNeeded()
       self.prepareMusicBufferIfNeeded()
       self.startEngineIfNeeded()
-      self.installRenderers()
       self.configureSmoothingTimerIfNeeded()
       self.isRunning = true
+    }
+  }
+  
+  func attach(conversation _: Conversation) {
+    processingQueue.async {
+      guard self.isRunning else { return }
+      self.installRenderers()
+      self.prepareVoiceGate()
     }
   }
   
@@ -225,6 +237,18 @@ private extension ConversationAudioEngine {
       AudioManager.shared.renderPreProcessingDelegate = nil
     }
     voiceConverter = nil
+    pendingVoiceBuffers.removeAll()
+    voiceGateReady = false
+  }
+
+  func prepareVoiceGate() {
+    voiceGateReady = false
+    pendingVoiceBuffers.removeAll()
+    processingQueue.asyncAfter(deadline: .now() + voiceGateDelay) { [weak self] in
+      guard let self, self.isRunning else { return }
+      self.voiceGateReady = true
+      self.flushPendingVoiceBuffers()
+    }
   }
 }
 
@@ -354,21 +378,26 @@ private extension ConversationAudioEngine {
   func handleRemoteBuffer(_ buffer: AVAudioPCMBuffer) {
     guard let playbackBuffer = prepareVoicePlaybackBuffer(from: buffer) else { return }
     let rms = computeRMS(from: buffer)
-    enqueueVoice(buffer: playbackBuffer, rms: rms)
-  }
-  
-  func enqueueVoice(buffer: AVAudioPCMBuffer, rms: Float) {
     processingQueue.async {
       guard self.isRunning else { return }
-      
-      self.aiLevel = self.lowPass(previous: self.aiLevel, newValue: rms)
-      self.voiceNode.scheduleBuffer(buffer, at: nil, options: [])
-      if !self.voiceNode.isPlaying {
-        self.voiceNode.play()
+      if self.voiceGateReady {
+        self.enqueueVoiceUnlocked(buffer: playbackBuffer, rms: rms)
+      } else {
+        self.pendingVoiceBuffers.append((playbackBuffer, rms))
       }
-      
-      self.updateTargetVolume()
     }
+  }
+  
+  func enqueueVoiceUnlocked(buffer: AVAudioPCMBuffer, rms: Float) {
+    guard isRunning else { return }
+    
+    aiLevel = lowPass(previous: aiLevel, newValue: rms)
+    voiceNode.scheduleBuffer(buffer, at: nil, options: [])
+    if !voiceNode.isPlaying {
+      voiceNode.play()
+    }
+    
+    updateTargetVolume()
   }
   
   func enqueueMicLevel(rms: Float) {
@@ -379,23 +408,47 @@ private extension ConversationAudioEngine {
     }
   }
   
-  func lowPass(previous: Float, newValue: Float, smoothing: Float = 0.2) -> Float {
+  func lowPass(previous: Float, newValue: Float, smoothing: Float = 0.3) -> Float {
+    // Higher smoothing = more responsive
     let clampedNew = max(0, min(1, newValue))
     return previous * (1 - smoothing) + clampedNew * smoothing
   }
   
   func updateTargetVolume() {
+    // More aggressive ducking logic with debug logging
+    let aiDb = 20 * log10(max(aiLevel, 1e-7))
+    let micDb = 20 * log10(max(micLevel, 1e-7))
+    
+    let aiActive = aiLevel > aiRmsThreshold || aiDb > aiDbThreshold
+    let micActive = micLevel > micRmsThreshold || micDb > micDbThreshold
+    
+    // Debug logging
+    if aiActive || micActive {
+      print("🎵 Ducking: AI RMS=\(aiLevel) dB=\(aiDb) active=\(aiActive), Mic RMS=\(micLevel) dB=\(micDb) active=\(micActive)")
+    }
+    
     let desired: Float
-    if aiLevel > aiThreshold {
+    if aiActive {
       desired = aiSpeakingVolume
-    } else if micLevel > micThreshold {
+    } else if micActive {
       desired = micSpeakingVolume
     } else {
       desired = idleVolume
     }
     
-    if abs(desired - targetVolume) > 0.005 {
+    if abs(desired - targetVolume) > 0.001 {
       targetVolume = desired
+    }
+  }
+
+  func flushPendingVoiceBuffers() {
+    guard voiceGateReady else { return }
+    if pendingVoiceBuffers.isEmpty { return }
+    
+    let buffers = pendingVoiceBuffers
+    pendingVoiceBuffers.removeAll()
+    for entry in buffers {
+      enqueueVoiceUnlocked(buffer: entry.buffer, rms: entry.rms)
     }
   }
   
@@ -403,7 +456,7 @@ private extension ConversationAudioEngine {
     guard smoothingTimer == nil else { return }
     
     let timer = DispatchSource.makeTimerSource(queue: processingQueue)
-    timer.schedule(deadline: .now(), repeating: .milliseconds(50))
+    timer.schedule(deadline: .now(), repeating: .milliseconds(20))  // Faster updates for smoother ducking
     timer.setEventHandler { [weak self] in
       self?.stepMusicVolume()
     }
@@ -413,10 +466,12 @@ private extension ConversationAudioEngine {
   
   func stepMusicVolume() {
     let diff = targetVolume - currentVolume
-    if abs(diff) < 0.002 {
+    if abs(diff) < 0.001 {
       currentVolume = targetVolume
     } else {
-      currentVolume += diff * 0.25
+      // Faster ducking response
+      let rate: Float = diff < 0 ? 0.5 : 0.15  // Duck quickly, recover slowly
+      currentVolume += diff * rate
     }
     
     musicNode.volume = currentVolume
@@ -433,15 +488,27 @@ private extension ConversationAudioEngine {
     let frames = vDSP_Length(buffer.frameLength)
     let channelCount = Int(buffer.format.channelCount)
     
-    var total: Float = 0
+    // Use peak detection for more responsive ducking
+    var maxPeak: Float = 0
+    for channel in 0..<channelCount {
+      var peak: Float = 0
+      vDSP_maxmgv(channelData[channel], 1, &peak, frames)
+      maxPeak = max(maxPeak, peak)
+    }
+    
+    // Blend peak with RMS for hybrid detection
+    var totalRMS: Float = 0
     for channel in 0..<channelCount {
       var meanSquare: Float = 0
       vDSP_measqv(channelData[channel], 1, &meanSquare, frames)
-      total += meanSquare
+      totalRMS += meanSquare
     }
+    totalRMS /= Float(max(channelCount, 1))
+    let rms = sqrtf(totalRMS)
     
-    total /= Float(max(channelCount, 1))
-    return sqrtf(total)
+    // Weight peak detection more heavily for faster response
+    return (maxPeak * 0.7) + (rms * 0.3)
   }
+  
 }
 
