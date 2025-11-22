@@ -34,18 +34,14 @@ struct OnboardingHeaderView: View {
             
             Spacer(minLength: 16)
             
-            Circle()
-                .fill(Color.white.opacity(0.9))
-                .overlay(
-                    Text("\(viewModel.currentStep.rawValue + 1)")
-                        .font(.outfit(14, weight: .semiBold))
-                        .foregroundColor(Color(red: 0.32, green: 0.29, blue: 0.46))
-                )
+            // Spacer to balance the chevron on the left, keeping progress centered if desired,
+            // or just remove the right element. Since the design screenshot shows just the bar,
+            // we can use an invisible placeholder or just let the spacer handle it.
+            // To keep the back button and progress bar aligned as in the design (centered bar?),
+            // we might want a dummy view of the same size as the back button if we want perfect centering.
+            // For now, just an invisible frame to balance the layout if needed, or simply nothing.
+            Color.clear
                 .frame(width: 24, height: 24)
-                .overlay(
-                    Circle()
-                        .stroke(Color.black.opacity(0.08), lineWidth: 1)
-                )
         }
         .frame(height: 24)
     }
@@ -62,7 +58,7 @@ struct ProgressIndicatorView: View {
                     .frame(height: 4)
                 
                 RoundedRectangle(cornerRadius: 999)
-                    .fill(Color(red: 0.39, green: 0.27, blue: 0.92))
+                    .fill(Color.black)
                     .frame(width: max(geometry.size.width * progress, 7), height: 4)
             }
             .animation(.easeInOut(duration: 0.3), value: progress)

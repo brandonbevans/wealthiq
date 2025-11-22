@@ -139,50 +139,49 @@ struct OnboardingView: View {
       }
     }
     #if DEBUG
-      .actionSheet(isPresented: $showingDebugMenu) {
-        ActionSheet(
-          title: Text("Debug Menu"),
-          message: Text("Developer options"),
-          buttons: [
-            .destructive(Text("Sign Out")) {
-              Task {
-                do {
-                  try await SupabaseManager.shared.signOut()
-                  print("✅ Signed out successfully")
-                  // Post notification to refresh auth state
-                  NotificationCenter.default.post(name: .debugAuthCompleted, object: nil)
-                } catch {
-                  print("❌ Sign out failed: \(error)")
-                }
-              }
-            },
-            .destructive(Text("Force Sign Out & Clear Session")) {
-              Task {
-                do {
-                  // Force sign out even if there's an error
-                  try? await SupabaseManager.shared.signOut()
+      .confirmationDialog("Debug Menu", isPresented: $showingDebugMenu, titleVisibility: .visible) {
+        Button("Sign Out", role: .destructive) {
+          Task {
+            do {
+              try await SupabaseManager.shared.signOut()
+              print("✅ Signed out successfully")
+              // Post notification to refresh auth state
+              NotificationCenter.default.post(name: .debugAuthCompleted, object: nil)
+            } catch {
+              print("❌ Sign out failed: \(error)")
+            }
+          }
+        }
+        
+        Button("Force Sign Out & Clear Session", role: .destructive) {
+          Task {
+            do {
+              // Force sign out even if there's an error
+              try? await SupabaseManager.shared.signOut()
 
-                  // Clear any stored session data
-                  UserDefaults.standard.removeObject(forKey: "sb-auth-token")
-                  UserDefaults.standard.synchronize()
+              // Clear any stored session data
+              UserDefaults.standard.removeObject(forKey: "sb-auth-token")
+              UserDefaults.standard.synchronize()
 
-                  print("✅ Force signed out and cleared session")
-                }
-              }
-            },
-            .default(Text("Check Session")) {
-              Task {
-                do {
-                  let userId = try await SupabaseManager.shared.getCurrentUserId()
-                  print("✅ Session valid - User ID: \(userId)")
-                } catch {
-                  print("❌ No valid session: \(error)")
-                }
-              }
-            },
-            .cancel(),
-          ]
-        )
+              print("✅ Force signed out and cleared session")
+            }
+          }
+        }
+        
+        Button("Check Session") {
+          Task {
+            do {
+              let userId = try await SupabaseManager.shared.getCurrentUserId()
+              print("✅ Session valid - User ID: \(userId)")
+            } catch {
+              print("❌ No valid session: \(error)")
+            }
+          }
+        }
+        
+        Button("Cancel", role: .cancel) { }
+      } message: {
+        Text("Developer options")
       }
     #endif
   }

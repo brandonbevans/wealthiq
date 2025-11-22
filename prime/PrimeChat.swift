@@ -158,6 +158,195 @@ struct AnimatedOrbView: View {
   }
 }
 
+// MARK: - Chat View
+
+struct ChatView: View {
+  @ObservedObject var viewModel: OrbConversationViewModel
+  @State private var messageText = ""
+  @FocusState private var isFocused: Bool
+  
+  var body: some View {
+    VStack(spacing: 0) {
+      // Message List
+      ScrollViewReader { proxy in
+        ScrollView {
+          LazyVStack(spacing: 16) {
+            ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, message in
+              MessageBubble(message: message, isLast: index == viewModel.messages.count - 1)
+                .id(message.id)
+            }
+          }
+          .padding()
+        }
+        .onChange(of: viewModel.messages.count) { _, _ in
+          if let lastMessage = viewModel.messages.last {
+            withAnimation {
+              proxy.scrollTo(lastMessage.id, anchor: .bottom)
+            }
+          }
+        }
+      }
+      
+      // Input Area
+      HStack(spacing: 12) {
+        TextField("Type a message...", text: $messageText)
+          .textFieldStyle(.plain)
+          .foregroundColor(.black)
+          .padding(12)
+          .background(Color.primeControlBg)
+          .cornerRadius(20)
+          .focused($isFocused)
+          .submitLabel(.send)
+          .onSubmit {
+              sendMessage()
+          }
+        
+        Button(action: sendMessage) {
+          Image(systemName: "paperplane.circle.fill")
+            .font(.system(size: 32))
+            .foregroundColor(messageText.isEmpty ? .gray : .primePrimaryText)
+        }
+        .disabled(messageText.isEmpty)
+      }
+      .padding()
+      .background(Color.white)
+      .overlay(
+        Rectangle()
+          .frame(height: 1)
+          .foregroundColor(Color.primeDivider),
+        alignment: .top
+      )
+    }
+    .background(Color.white)
+  }
+  
+  private func sendMessage() {
+      guard !messageText.isEmpty else { return }
+      let text = messageText
+      messageText = ""
+      Task {
+          await viewModel.sendMessage(text)
+      }
+  }
+}
+
+struct MessageBubble: View {
+    let message: Message
+    let isLast: Bool
+    
+    var isUser: Bool {
+        message.role == .user
+    }
+    
+    var body: some View {
+        HStack {
+            if isUser { Spacer() }
+            
+            if isUser {
+                Text(message.content ?? "")
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
+                    .background(Color.primePrimaryText)
+                    .foregroundColor(.white)
+                    .cornerRadius(20)
+                    .cornerRadius(4, corners: .bottomRight)
+            } else {
+                if isLast {
+                    TypewriterText(text: message.content ?? "")
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color.primeControlBg)
+                        .foregroundColor(.black)
+                        .cornerRadius(20)
+                        .cornerRadius(4, corners: .bottomLeft)
+                } else {
+                    Text(message.content ?? "")
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
+                        .background(Color.primeControlBg)
+                        .foregroundColor(.black)
+                        .cornerRadius(20)
+                        .cornerRadius(4, corners: .bottomLeft)
+                }
+            }
+            
+            if !isUser { Spacer() }
+        }
+    }
+}
+
+struct TypewriterText: View {
+    let text: String
+    @State private var displayedText = ""
+    @State private var charIndex = 0
+    
+    // Faster typing speed for better UX
+    private let typingSpeed: TimeInterval = 0.02
+    
+    var body: some View {
+        Text(displayedText)
+            .onAppear {
+                startTyping()
+            }
+            .onChange(of: text) { _, newText in
+                // If text changes (e.g. correction or full load), restart or append
+                // For simplicity, if the text is significantly different, we reset
+                if !newText.hasPrefix(displayedText) {
+                    displayedText = ""
+                    charIndex = 0
+                    startTyping()
+                } else {
+                    // Continue typing if it's just an append
+                    startTyping()
+                }
+            }
+    }
+    
+    private func startTyping() {
+        // Invalidate existing timer if any (not storing timer here, relying on async dispatch)
+        // A simple recursive dispatch is safer for SwiftUI state updates than a Timer in some cases
+        
+        guard charIndex < text.count else { return }
+        
+        let remainingCount = text.count - charIndex
+        
+        // If text is huge, just show it all to avoid long wait
+        if remainingCount > 1000 {
+            displayedText = text
+            charIndex = text.count
+            return
+        }
+        
+        Timer.scheduledTimer(withTimeInterval: typingSpeed, repeats: true) { timer in
+            if charIndex < text.count {
+                let index = text.index(text.startIndex, offsetBy: charIndex)
+                displayedText.append(text[index])
+                charIndex += 1
+            } else {
+                timer.invalidate()
+            }
+        }
+    }
+}
+
+// Helper for rounded corners
+extension View {
+    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
+        clipShape(RoundedCorner(radius: radius, corners: corners))
+    }
+}
+
+struct RoundedCorner: Shape {
+    var radius: CGFloat = .infinity
+    var corners: UIRectCorner = .allCorners
+
+    func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath(roundedRect: rect, byRoundingCorners: corners, cornerRadii: CGSize(width: radius, height: radius))
+        return Path(path.cgPath)
+    }
+}
+
+
 // MARK: - Conversation ViewModel (using latest ElevenLabs Swift SDK)
 
 @MainActor
@@ -173,6 +362,15 @@ final class OrbConversationViewModel: ObservableObject {
   @Published var microphoneDenied: Bool = false
   @Published var isArchivingSession: Bool = false
   @Published var lastArchiveError: String?
+  @Published var isMuted: Bool = false
+  @Published var isSpeakerMuted: Bool = false
+  @Published var messages: [Message] = []
+  @Published var mode: ConversationMode = .talk
+  
+  enum ConversationMode {
+      case talk
+      case chat
+  }
   
   private var cancellables = Set<AnyCancellable>()
   private let audioSession = AVAudioSession.sharedInstance()
@@ -198,11 +396,28 @@ final class OrbConversationViewModel: ObservableObject {
     }
   }
   
+  func toggleMute() {
+    guard let conversation = conversation else { return }
+    Task {
+      do {
+        try await conversation.toggleMute()
+      } catch {
+        print("Failed to toggle mute: \(error)")
+      }
+    }
+  }
+  
+  func toggleSpeakerMute() {
+      isSpeakerMuted.toggle()
+      ConversationAudioEngine.shared.setVoiceVolume(isSpeakerMuted ? 0.0 : 1.0)
+  }
+  
   private func startConversation(agentId: String) async {
     connectionState = .connecting
     errorMessage = nil
     lastArchiveError = nil
     isArchivingSession = false
+    isMuted = false
     
     do {
       let hasPermission = await requestMicrophonePermission()
@@ -269,10 +484,23 @@ final class OrbConversationViewModel: ObservableObject {
     connectionState = .idle
     isInteractive = false
     cancellables.removeAll()
+    messages.removeAll()
 
     Task { [weak self] in
       await self?.archiveMostRecentConversation()
     }
+  }
+  
+  // MARK: - Chat Functionality
+  
+  func sendMessage(_ text: String) async {
+      guard let conversation = conversation else { return }
+      do {
+          try await conversation.sendMessage(text)
+      } catch {
+          print("❌ Failed to send message: \(error)")
+          errorMessage = "Failed to send message"
+      }
   }
   
   private func setupObservers(for conversation: Conversation) {
@@ -317,6 +545,22 @@ final class OrbConversationViewModel: ObservableObject {
         }
       }
       .store(in: &cancellables)
+      
+      // Messages
+      conversation.$messages
+          .receive(on: DispatchQueue.main)
+          .sink { [weak self] messages in
+              self?.messages = messages
+          }
+          .store(in: &cancellables)
+      
+      // Mute state
+      conversation.$isMuted
+          .receive(on: DispatchQueue.main)
+          .sink { [weak self] isMuted in
+              self?.isMuted = isMuted
+          }
+          .store(in: &cancellables)
   }
   
   private func requestMicrophonePermission() async -> Bool {
@@ -580,6 +824,7 @@ struct WarningBanner: View {
 
 struct PrimeChat: View {
   @StateObject private var viewModel = OrbConversationViewModel()
+  @State private var showingDebugMenu = false
   
   // Use the Agent ID from config directly.
   private let agentId = Config.elevenLabsAgentId
@@ -589,22 +834,39 @@ struct PrimeChat: View {
       // Background
       Color.white.ignoresSafeArea()
       
-      // Subtle blue glow at bottom
-      GeometryReader { proxy in
-        Ellipse()
-          .fill(
-            Color(red: 0.62, green: 0.83, blue: 1.0)
-              .opacity(0.25)
-          )
-          .frame(width: proxy.size.width * 1.5, height: proxy.size.height * 0.5)
-          .position(x: proxy.size.width / 2, y: proxy.size.height * 1.1)
-          .blur(radius: 60)
+      // Subtle blue glow at bottom (only in Talk mode or if desired in Chat too)
+      if viewModel.mode == .talk {
+          GeometryReader { proxy in
+            Ellipse()
+              .fill(
+                Color(red: 0.62, green: 0.83, blue: 1.0)
+                  .opacity(0.25)
+              )
+              .frame(width: proxy.size.width * 1.5, height: proxy.size.height * 0.5)
+              .position(x: proxy.size.width / 2, y: proxy.size.height * 1.1)
+              .blur(radius: 60)
+          }
+          .ignoresSafeArea()
       }
-      .ignoresSafeArea()
       
       VStack(spacing: 0) {
         // Top Bar
         HStack {
+          #if DEBUG
+          Button(action: {
+            showingDebugMenu = true
+          }) {
+            Image(systemName: "gearshape.fill")
+              .font(.system(size: 16))
+              .foregroundColor(.gray)
+              .padding(6)
+              .background(Color.white)
+              .clipShape(Circle())
+              .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 1)
+          }
+          .padding(.trailing, 8)
+          #endif
+
           // Streak Indicator
           HStack(spacing: 4) {
             Image(systemName: "flame.fill")
@@ -619,26 +881,33 @@ struct PrimeChat: View {
           
           // Talk / Chat Toggle
           HStack(spacing: 0) {
-            // Talk (Active)
-            HStack(spacing: 6) {
-              Text("Talk")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.black)
+            // Talk Button
+            Button(action: { viewModel.mode = .talk }) {
+                HStack(spacing: 6) {
+                  Text("Talk")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(viewModel.mode == .talk ? .black : .gray)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .background(viewModel.mode == .talk ? Color.white : Color.clear)
+                .cornerRadius(20)
+                .shadow(color: viewModel.mode == .talk ? Color.black.opacity(0.05) : .clear, radius: 2, x: 0, y: 1)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 16)
-            .background(Color.white)
-            .cornerRadius(20)
-            .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
             
-            // Chat (Inactive)
-            HStack(spacing: 6) {
-              Text("Chat")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.gray)
+            // Chat Button
+            Button(action: { viewModel.mode = .chat }) {
+                HStack(spacing: 6) {
+                  Text("Chat")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundColor(viewModel.mode == .chat ? .black : .gray)
+                }
+                .padding(.vertical, 8)
+                .padding(.horizontal, 16)
+                .background(viewModel.mode == .chat ? Color.white : Color.clear)
+                .cornerRadius(20)
+                .shadow(color: viewModel.mode == .chat ? Color.black.opacity(0.05) : .clear, radius: 2, x: 0, y: 1)
             }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 16)
           }
           .padding(4)
           .background(Color(red: 0.96, green: 0.96, blue: 0.98)) // Light gray/blue bg
@@ -665,119 +934,120 @@ struct PrimeChat: View {
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
+        .padding(.bottom, 10)
         
-        Spacer()
-        
-        // Center Content
-        VStack(spacing: 32) {
-          if viewModel.isConnected {
-            AnimatedOrbView(
-              agentState: viewModel.conversation?.agentState ?? .listening,
-              size: 200
-            )
-          } else {
-            // Idle State - Static Orb or similar
-             Circle()
-              .fill(
-                LinearGradient(
-                  colors: [
-                    Color(red: 0.95, green: 0.96, blue: 1.0),
-                    Color(red: 0.85, green: 0.88, blue: 1.0)
-                  ],
-                  startPoint: .topLeading,
-                  endPoint: .bottomTrailing
+        // Content Area
+        if viewModel.mode == .chat {
+            ChatView(viewModel: viewModel)
+                .frame(maxHeight: .infinity)
+                .transition(.opacity)
+        } else {
+            Spacer()
+            
+            // Center Content (Orb)
+            VStack(spacing: 32) {
+              if viewModel.isConnected {
+                AnimatedOrbView(
+                  agentState: viewModel.conversation?.agentState ?? .listening,
+                  size: 200
                 )
-              )
-              .frame(width: 200, height: 200)
-              .shadow(color: Color.blue.opacity(0.1), radius: 20, x: 0, y: 10)
-              .overlay(
-                Image(systemName: "mic.fill")
-                  .font(.system(size: 40))
-                  .foregroundColor(.white.opacity(0.8))
-              )
-              .onTapGesture {
-                Task {
-                   await viewModel.toggleConversation(agentId: agentId)
-                }
-              }
-          }
-          
-          VStack(spacing: 8) {
-            Text("Hi \(viewModel.userProfile?.firstName ?? "User"), Welcome to Prime.")
-              .font(.system(size: 18, weight: .medium))
-              .foregroundColor(.black.opacity(0.8))
-              .multilineTextAlignment(.center)
-            
-            Text("I am your personal AI coach that\nhelps you get things done.")
-              .font(.system(size: 16, weight: .regular))
-              .foregroundColor(.gray)
-              .multilineTextAlignment(.center)
-              .lineSpacing(4)
-          }
-        }
-        
-        Spacer()
-        
-        // Bottom Bar
-        HStack {
-            // Left: Spiral / History
-            Button(action: {
-                // History action
-            }) {
-                Image(systemName: "tornado") // Closest SF Symbol to a spiral
-                    .font(.system(size: 22))
-                    .foregroundColor(Color.black.opacity(0.6))
-                    .frame(width: 44, height: 44)
-            }
-            
-            Spacer()
-            
-            // Center: Status / Action Pill
-            Button(action: {
-                Task {
-                   await viewModel.toggleConversation(agentId: agentId)
-                }
-            }) {
-                HStack(spacing: 12) {
-                    if viewModel.isConnected {
-                        // Status Text (e.g. Listening)
-                         Image(systemName: "waveform")
-                            .font(.system(size: 14))
-                        Text(viewModel.isSpeaking ? "Speaking" : "Listening")
-                            .font(.system(size: 16, weight: .medium))
-                    } else {
-                        Text("Tap to Start")
-                             .font(.system(size: 16, weight: .medium))
-                    }
-                }
-                .foregroundColor(.black.opacity(0.8))
-                .padding(.horizontal, 24)
-                .padding(.vertical, 12)
-                .background(Color.white)
-                .cornerRadius(30)
-                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
-            }
-            
-            Spacer()
-            
-            // Right: Mic Toggle (Mute/Unmute) or Stop
-            Button(action: {
-                 Task {
-                   if viewModel.isConnected {
-                       await viewModel.endConversation()
-                   } else {
+              } else {
+                // Idle State - Static Orb or similar
+                 Circle()
+                  .fill(
+                    LinearGradient(
+                      colors: [
+                        Color(red: 0.95, green: 0.96, blue: 1.0),
+                        Color(red: 0.85, green: 0.88, blue: 1.0)
+                      ],
+                      startPoint: .topLeading,
+                      endPoint: .bottomTrailing
+                    )
+                  )
+                  .frame(width: 200, height: 200)
+                  .shadow(color: Color.blue.opacity(0.1), radius: 20, x: 0, y: 10)
+                  .overlay(
+                    Image(systemName: "mic.fill")
+                      .font(.system(size: 40))
+                      .foregroundColor(.white.opacity(0.8))
+                  )
+                  .onTapGesture {
+                    Task {
                        await viewModel.toggleConversation(agentId: agentId)
-                   }
-                }
-            }) {
-                Image(systemName: viewModel.isConnected ? "mic.fill" : "mic.slash.fill")
-                    .font(.system(size: 22))
-                    .foregroundColor(Color.black.opacity(0.6))
-                    .frame(width: 44, height: 44)
+                    }
+                  }
+              }
             }
+            
+            Spacer()
+            
+            // Bottom Bar (Only for Talk Mode)
+            HStack {
+                // Left: Speaker Mute (previously History)
+                Button(action: {
+                    viewModel.toggleSpeakerMute()
+                }) {
+                    Image(systemName: viewModel.isSpeakerMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                        .font(.system(size: 22))
+                        .foregroundColor(viewModel.isSpeakerMuted ? Color.red : Color.black.opacity(0.6))
+                        .frame(width: 44, height: 44)
+                        .contentTransition(.symbolEffect(.replace))
+                }
+                
+                Spacer()
+                
+                // Center: Status / Action Pill
+                Button(action: {
+                    Task {
+                       await viewModel.toggleConversation(agentId: agentId)
+                    }
+                }) {
+                    HStack(spacing: 12) {
+                        if viewModel.isConnected {
+                            // Status Text (e.g. Listening)
+                             Image(systemName: "waveform")
+                                .font(.system(size: 14))
+                            Text(viewModel.isSpeaking ? "Speaking" : "Listening")
+                                .font(.system(size: 16, weight: .medium))
+                        } else {
+                            Text("Tap to Start")
+                                 .font(.system(size: 16, weight: .medium))
+                        }
+                    }
+                    .foregroundColor(.black.opacity(0.8))
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(Color.white)
+                    .cornerRadius(30)
+                    .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
+                }
+                
+                Spacer()
+                
+                // Right: Mic Toggle (Mute/Unmute)
+                Button(action: {
+                     viewModel.toggleMute()
+                }) {
+                    ZStack {
+                        if viewModel.isConnected {
+                            Image(systemName: viewModel.isMuted ? "mic.slash.fill" : "mic.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(viewModel.isMuted ? Color.red : Color.black.opacity(0.6))
+                                .contentTransition(.symbolEffect(.replace))
+                        } else {
+                            Image(systemName: "mic.fill")
+                                .font(.system(size: 22))
+                                .foregroundColor(Color.black.opacity(0.2)) // Disabled look
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+                }
+                .disabled(!viewModel.isConnected)
+            }
+            .padding(.horizontal, 30)
+            .padding(.bottom, 20)
+            .transition(.opacity)
         }
-        .padding(.horizontal, 30)
-        .padding(.bottom, 20)
       }
       
       // Banners
@@ -795,6 +1065,47 @@ struct PrimeChat: View {
         }
       }
     }
+    #if DEBUG
+    .confirmationDialog("Debug Menu", isPresented: $showingDebugMenu, titleVisibility: .visible) {
+      Button("Sign Out", role: .destructive) {
+        Task {
+          do {
+            try await SupabaseManager.shared.signOut()
+            print("✅ Signed out successfully")
+            NotificationCenter.default.post(name: .debugAuthCompleted, object: nil)
+          } catch {
+            print("❌ Sign out failed: \(error)")
+          }
+        }
+      }
+      
+      Button("Force Sign Out & Clear Session", role: .destructive) {
+        Task {
+          do {
+            try? await SupabaseManager.shared.signOut()
+            UserDefaults.standard.removeObject(forKey: "sb-auth-token")
+            UserDefaults.standard.synchronize()
+            print("✅ Force signed out and cleared session")
+          }
+        }
+      }
+      
+      Button("Check Session") {
+        Task {
+          do {
+            let userId = try await SupabaseManager.shared.getCurrentUserId()
+            print("✅ Session valid - User ID: \(userId)")
+          } catch {
+            print("❌ No valid session: \(error)")
+          }
+        }
+      }
+      
+      Button("Cancel", role: .cancel) { }
+    } message: {
+      Text("Developer options")
+    }
+    #endif
     .onAppear {
       Task {
         await viewModel.loadUserProfile()

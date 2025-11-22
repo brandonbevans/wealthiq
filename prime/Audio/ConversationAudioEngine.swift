@@ -137,6 +137,12 @@ final class ConversationAudioEngine: NSObject {
     }
   }
   
+  func setVoiceVolume(_ volume: Float) {
+    processingQueue.async {
+      self.voiceNode.volume = volume
+    }
+  }
+  
   func stop() {
     processingQueue.async {
       self.stopLocked()

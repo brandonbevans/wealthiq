@@ -43,6 +43,7 @@ extension Color {
     static let primePrimaryDark = Color(hex: "5339E0")
     static let primePrimaryLight = Color(hex: "8B73FF")
     static let primeAccent = Color(hex: "FF6B9D")  // Coral pink accent
+    static let primeBlue = Color(hex: "2F80ED")    // Brand blue for chat bubbles
     
     // Text colors
     static let primePrimaryText = Color(hex: "1A1A2E")  // Deep blue-black
