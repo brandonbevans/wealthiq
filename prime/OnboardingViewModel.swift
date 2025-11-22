@@ -98,11 +98,9 @@ enum OnboardingStep: Int, CaseIterable {
   case goalRecency = 4
   case goalWritingInfo = 5
   case primaryGoal = 6
-  case goalVisualization = 7
-  case visualizationInfo = 8
-  case microAction = 9
-  case coachingStyle = 10
-  case planCalculation = 11
+  case microAction = 7
+  case coachingStyle = 8
+  case planCalculation = 9
 
   var totalSteps: Int {
     OnboardingStep.allCases.count
@@ -238,10 +236,6 @@ class OnboardingViewModel: ObservableObject {
       return true
     case .primaryGoal:
       return !primaryGoal.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    case .goalVisualization:
-      return !goalVisualization.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    case .visualizationInfo:
-      return true
     case .microAction:
       return !microAction.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     case .coachingStyle:
@@ -309,8 +303,6 @@ class OnboardingViewModel: ObservableObject {
 
       // Store existing text to append to
       switch field {
-      case .goalVisualization:
-        textBeforeRecording = goalVisualization
       case .microAction:
         textBeforeRecording = microAction
       default:
@@ -333,8 +325,6 @@ class OnboardingViewModel: ObservableObject {
       : textBeforeRecording + " " + transcribedText
 
     switch field {
-    case .goalVisualization:
-      goalVisualization = combinedText
     case .microAction:
       microAction = combinedText
     default:
@@ -372,8 +362,6 @@ class OnboardingViewModel: ObservableObject {
       if selectedGoalRecency == nil { return }
     case .primaryGoal:
       if primaryGoal.isEmpty { return }
-    case .goalVisualization:
-      if goalVisualization.isEmpty { return }
     case .microAction:
       if microAction.isEmpty { return }
     case .coachingStyle:

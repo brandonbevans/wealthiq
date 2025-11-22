@@ -39,8 +39,8 @@ struct ContinueButtonView: View {
     private var buttonBackground: LinearGradient {
         LinearGradient(
             colors: [
-                Color(red: 0.40, green: 0.27, blue: 0.96),
-                Color(red: 0.32, green: 0.21, blue: 0.88)
+                Color(red: 0.05, green: 0.09, blue: 0.16),
+                Color(red: 0.05, green: 0.09, blue: 0.16)
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing

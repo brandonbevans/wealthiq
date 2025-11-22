@@ -33,100 +33,83 @@ struct AnimatedOrbView: View {
   
   var body: some View {
     ZStack {
-      glowRings
-      mainOrb
-      shimmerEffect
-      stateIcon
+      // Soft outer glow
+      Circle()
+        .fill(
+          RadialGradient(
+            colors: [
+              Color(red: 0.7, green: 0.8, blue: 1.0).opacity(0.3),
+              Color.clear
+            ],
+            center: .center,
+            startRadius: size * 0.4,
+            endRadius: size * 1.2
+          )
+        )
+        .frame(width: size * 2, height: size * 2)
+        .scaleEffect(pulseAmount * 1.1)
+
+      // Main Sphere (Pearl/Bubble look)
+      Circle()
+        .fill(
+          LinearGradient(
+            colors: [
+              Color(red: 0.95, green: 0.96, blue: 1.0), // Top-left highlight (White-ish)
+              Color(red: 0.85, green: 0.88, blue: 1.0), // Mid (Soft Blue)
+              Color(red: 0.75, green: 0.70, blue: 1.0)  // Bottom-right (Soft Purple)
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+          )
+        )
+        .frame(width: size, height: size)
+        .shadow(
+          color: Color(red: 0.6, green: 0.6, blue: 0.9).opacity(0.25),
+          radius: size * 0.15,
+          x: 0,
+          y: size * 0.1
+        )
+        .scaleEffect(pulseAmount)
+      
+      // Inner "Bubble" Highlight
+      Circle()
+        .fill(
+          RadialGradient(
+            colors: [
+              Color.white.opacity(0.8),
+              Color.white.opacity(0.0)
+            ],
+            center: .topLeading,
+            startRadius: 0,
+            endRadius: size * 0.6
+          )
+        )
+        .frame(width: size, height: size)
+        .scaleEffect(pulseAmount)
+        .offset(x: -size * 0.15, y: -size * 0.15)
+      
+      // Shimmer/Rotation (Subtle)
+      Circle()
+        .fill(
+          AngularGradient(
+            colors: [
+              .white.opacity(0.3),
+              .clear,
+              .white.opacity(0.1),
+              .clear
+            ],
+            center: .center
+          )
+        )
+        .frame(width: size * 0.9, height: size * 0.9)
+        .rotationEffect(.degrees(rotation))
+        .blur(radius: size * 0.05)
     }
-    .frame(width: size, height: size)
     .onAppear {
       startAnimation()
     }
     .onChange(of: agentState) { _, _ in
       startAnimation()
-    }
-  }
-  
-  private var glowRings: some View {
-    ForEach(0..<3) { index in
-      Circle()
-        .stroke(lineWidth: 2)
-        .foregroundStyle(ringGradient)
-        .frame(width: size + CGFloat(index) * (size * 0.2), height: size + CGFloat(index) * (size * 0.2))
-        .scaleEffect(pulseAmount + CGFloat(index) * 0.1)
-        .opacity(1.0 - Double(index) * 0.3)
-    }
-  }
-  
-  private var ringGradient: LinearGradient {
-    LinearGradient(
-      colors: [
-        Color.primePrimary.opacity(0.6),
-        Color.primePrimaryLight.opacity(0.3)
-      ],
-      startPoint: .topLeading,
-      endPoint: .bottomTrailing
-    )
-  }
-  
-  private var mainOrb: some View {
-    Circle()
-      .fill(orbGradient)
-      .frame(width: size, height: size)
-      .shadow(color: Color.primePrimary.opacity(0.5), radius: size * 0.125, x: 0, y: size * 0.06)
-      .scaleEffect(pulseAmount)
-  }
-  
-  private var orbGradient: RadialGradient {
-    RadialGradient(
-      colors: [
-        Color.primePrimaryLight,
-        Color.primePrimary,
-        Color.primePrimaryDark
-      ],
-      center: .topLeading,
-      startRadius: 0,
-      endRadius: size * 0.625
-    )
-  }
-  
-  private var shimmerEffect: some View {
-    Circle()
-      .fill(shimmerGradient)
-      .frame(width: size * 0.6, height: size * 0.6)
-      .rotationEffect(.degrees(rotation))
-      .blur(radius: size * 0.05)
-  }
-  
-  private var shimmerGradient: AngularGradient {
-    AngularGradient(
-      colors: [
-        .white.opacity(0.8),
-        .clear,
-        .white.opacity(0.4),
-        .clear
-      ],
-      center: .center
-    )
-  }
-  
-  private var stateIcon: some View {
-    Image(systemName: iconName)
-      .font(.system(size: size * 0.2, weight: .semibold))
-      .foregroundColor(.white)
-      .scaleEffect(pulseAmount)
-  }
-  
-  private var iconName: String {
-    switch agentState {
-    case .listening:
-      return "waveform"
-    case .speaking:
-      return "speaker.wave.3.fill"
-    case .thinking:
-      return "brain"
-    default:
-      return "waveform"
     }
   }
   
@@ -146,13 +129,13 @@ struct AnimatedOrbView: View {
   private var pulseRange: (min: CGFloat, max: CGFloat) {
     switch agentState {
     case .listening:
-      return (0.95, 1.05)
+      return (0.98, 1.02)
     case .speaking:
-      return (0.9, 1.15)
+      return (0.95, 1.1)
     case .thinking:
-      return (0.92, 1.08)
+      return (0.97, 1.03)
     default:
-      return (0.95, 1.05)
+      return (0.98, 1.02)
     }
   }
   
@@ -167,7 +150,7 @@ struct AnimatedOrbView: View {
     
     // Rotation animation for shimmer
     withAnimation(
-      .linear(duration: 4)
+      .linear(duration: 8)
       .repeatForever(autoreverses: false)
     ) {
       rotation = 360
@@ -599,296 +582,206 @@ struct PrimeChat: View {
   @StateObject private var viewModel = OrbConversationViewModel()
   
   // Use the Agent ID from config directly.
-  // If it's empty, we pass empty string, which relies on SDK default behavior or failing gracefully.
   private let agentId = Config.elevenLabsAgentId
   
   var body: some View {
     ZStack(alignment: .top) {
-      // Gradient Background
-      LinearGradient(
-        colors: [Color.primeGradientTop, Color.primeGradientBottom],
-        startPoint: .top,
-        endPoint: .bottom
-      )
-      .ignoresSafeArea()
+      // Background
+      Color.white.ignoresSafeArea()
       
-      // Subtle decorative overlay
-      GeometryReader { geometry in
-        ZStack {
-          // Soft gradient orbs for depth
-          Circle()
-            .fill(
-              RadialGradient(
-                colors: [Color.primePrimary.opacity(0.08), Color.clear],
-                center: .center,
-                startRadius: 0,
-                endRadius: 150
-              )
-            )
-            .frame(width: 300, height: 300)
-            .blur(radius: 40)
-            .position(x: geometry.size.width * 0.2, y: geometry.size.height * 0.25)
-          
-          Circle()
-            .fill(
-              RadialGradient(
-                colors: [Color.primeAccent.opacity(0.06), Color.clear],
-                center: .center,
-                startRadius: 0,
-                endRadius: 120
-              )
-            )
-            .frame(width: 240, height: 240)
-            .blur(radius: 35)
-            .position(x: geometry.size.width * 0.85, y: geometry.size.height * 0.65)
-        }
+      // Subtle blue glow at bottom
+      GeometryReader { proxy in
+        Ellipse()
+          .fill(
+            Color(red: 0.62, green: 0.83, blue: 1.0)
+              .opacity(0.25)
+          )
+          .frame(width: proxy.size.width * 1.5, height: proxy.size.height * 0.5)
+          .position(x: proxy.size.width / 2, y: proxy.size.height * 1.1)
+          .blur(radius: 60)
       }
       .ignoresSafeArea()
       
       VStack(spacing: 0) {
-        // Top Bar with Talk/Chat Toggle
-        VStack(spacing: 16) {
-          // Profile Section
-          HStack {
-            // Session Indicator
+        // Top Bar
+        HStack {
+          // Streak Indicator
+          HStack(spacing: 4) {
+            Image(systemName: "flame.fill")
+              .foregroundColor(Color(red: 1.0, green: 0.5, blue: 0.0)) // Orange flame
+              .font(.system(size: 16))
+            Text("1")
+              .font(.system(size: 16, weight: .semibold))
+              .foregroundColor(Color.black.opacity(0.8))
+          }
+          
+          Spacer()
+          
+          // Talk / Chat Toggle
+          HStack(spacing: 0) {
+            // Talk (Active)
             HStack(spacing: 6) {
-              Circle()
-                .fill(Color.primePrimary.opacity(0.2))
-                .frame(width: 8, height: 8)
-              
-              Text("Session 1")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(Color.primeSecondaryText)
+              Text("Talk")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.black)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(Color.primeSurface)
+            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
+            .background(Color.white)
             .cornerRadius(20)
             .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
             
-            Spacer()
-            
-            // User Profile
-            Circle()
-              .fill(
-                LinearGradient(
-                  colors: [Color.primePrimaryLight, Color.primePrimary],
-                  startPoint: .topLeading,
-                  endPoint: .bottomTrailing
-                )
-              )
-              .frame(width: 36, height: 36)
-              .overlay(
-                Text(viewModel.userProfile?.firstName.prefix(1).uppercased() ?? "U")
-                  .font(.system(size: 16, weight: .semibold))
-                  .foregroundColor(.white)
-              )
-              .shadow(color: Color.primePrimary.opacity(0.3), radius: 4, x: 0, y: 2)
-          }
-          .padding(.horizontal, 24)
-          .padding(.top, 20)
-          
-          // Talk/Chat Toggle
-          HStack(spacing: 0) {
-            // Talk Button (Active State)
-            Button(action: {
-              // Talk mode is active
-            }) {
-              HStack(spacing: 6) {
-                Image(systemName: "mic.fill")
-                  .font(.system(size: 14))
-                Text("Talk")
-                  .font(.system(size: 15, weight: .semibold))
-              }
-              .foregroundColor(Color.primePrimaryText)
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, 10)
-              .background(Color.white)
-              .cornerRadius(24)
+            // Chat (Inactive)
+            HStack(spacing: 6) {
+              Text("Chat")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.gray)
             }
-            
-            // Chat Button (Inactive State)
-            Button(action: {
-              // Future: Switch to chat mode
-            }) {
-              HStack(spacing: 6) {
-                Image(systemName: "message.fill")
-                  .font(.system(size: 14))
-                Text("Chat")
-                  .font(.system(size: 15, weight: .medium))
-              }
-              .foregroundColor(Color.primeTertiaryText)
-              .frame(maxWidth: .infinity)
-              .padding(.vertical, 10)
-            }
+            .padding(.vertical, 8)
+            .padding(.horizontal, 16)
           }
           .padding(4)
-          .background(Color.primeToggleBg)
-          .cornerRadius(28)
-          .padding(.horizontal, 80)
+          .background(Color(red: 0.96, green: 0.96, blue: 0.98)) // Light gray/blue bg
+          .cornerRadius(24)
+          
+          Spacer()
+          
+          // User Profile
+          if let firstName = viewModel.userProfile?.firstName {
+            Circle()
+              .fill(Color(red: 0.2, green: 0.2, blue: 0.2)) // Dark gray avatar
+              .frame(width: 36, height: 36)
+              .overlay(
+                Text(firstName.prefix(1).uppercased())
+                  .font(.system(size: 14, weight: .semibold))
+                  .foregroundColor(.white)
+              )
+          } else {
+            Circle()
+              .fill(Color.gray.opacity(0.2))
+              .frame(width: 36, height: 36)
+              .overlay(Image(systemName: "person.fill").foregroundColor(.gray))
+          }
         }
+        .padding(.horizontal, 20)
+        .padding(.top, 10)
         
         Spacer()
         
         // Center Content
-        VStack(spacing: 40) {
-          Spacer()
-          
-          if !viewModel.isConnected {
-            // Idle State Content
-            VStack(spacing: 32) {
-              // Decorative AI Avatar
-              ZStack {
-                // Outer glow
-                Circle()
-                  .fill(
-                    RadialGradient(
-                      colors: [Color.primePrimary.opacity(0.15), Color.clear],
-                      center: .center,
-                      startRadius: 40,
-                      endRadius: 80
-                    )
-                  )
-                  .frame(width: 160, height: 160)
-                
-                // Main avatar circle
-                Circle()
-                  .fill(Color.white)
-                  .frame(width: 120, height: 120)
-                  .shadow(color: Color.primePrimary.opacity(0.2), radius: 20, x: 0, y: 10)
-                  .overlay(
-                    Image(systemName: "sparkles")
-                      .font(.system(size: 36, weight: .light))
-                      .foregroundStyle(
-                        LinearGradient(
-                          colors: [Color.primePrimaryLight, Color.primePrimary],
-                          startPoint: .topLeading,
-                          endPoint: .bottomTrailing
-                        )
-                      )
-                  )
-              }
-              
-              // Welcome Text
-              VStack(spacing: 12) {
-                Text("Hi \(viewModel.userProfile?.firstName ?? "there"), Welcome to Prime")
-                  .font(.system(size: 26, weight: .semibold))
-                  .foregroundColor(Color.primePrimaryText)
-                  .multilineTextAlignment(.center)
-                
-                Text("I'm your personal AI coach ready to help you achieve your goals")
-                  .font(.system(size: 16, weight: .regular))
-                  .foregroundColor(Color.primeSecondaryText)
-                  .multilineTextAlignment(.center)
-                  .padding(.horizontal, 32)
-                  .lineSpacing(4)
-              }
-            }
+        VStack(spacing: 32) {
+          if viewModel.isConnected {
+            AnimatedOrbView(
+              agentState: viewModel.conversation?.agentState ?? .listening,
+              size: 200
+            )
           } else {
-            // Connected State - Show animated orb
-            VStack(spacing: 24) {
-              AnimatedOrbView(
-                agentState: viewModel.conversation?.agentState ?? .listening,
-                size: 140
+            // Idle State - Static Orb or similar
+             Circle()
+              .fill(
+                LinearGradient(
+                  colors: [
+                    Color(red: 0.95, green: 0.96, blue: 1.0),
+                    Color(red: 0.85, green: 0.88, blue: 1.0)
+                  ],
+                  startPoint: .topLeading,
+                  endPoint: .bottomTrailing
+                )
               )
-              
-              Text(viewModel.isSpeaking ? "Speaking..." : "Listening...")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundColor(Color.primePrimary)
-                .animation(.easeInOut(duration: 0.3), value: viewModel.isSpeaking)
-            }
+              .frame(width: 200, height: 200)
+              .shadow(color: Color.blue.opacity(0.1), radius: 20, x: 0, y: 10)
+              .overlay(
+                Image(systemName: "mic.fill")
+                  .font(.system(size: 40))
+                  .foregroundColor(.white.opacity(0.8))
+              )
+              .onTapGesture {
+                Task {
+                   await viewModel.toggleConversation(agentId: agentId)
+                }
+              }
           }
           
-          Spacer()
+          VStack(spacing: 8) {
+            Text("Hi \(viewModel.userProfile?.firstName ?? "User"), Welcome to Prime.")
+              .font(.system(size: 18, weight: .medium))
+              .foregroundColor(.black.opacity(0.8))
+              .multilineTextAlignment(.center)
+            
+            Text("I am your personal AI coach that\nhelps you get things done.")
+              .font(.system(size: 16, weight: .regular))
+              .foregroundColor(.gray)
+              .multilineTextAlignment(.center)
+              .lineSpacing(4)
+          }
         }
         
         Spacer()
         
-        // Bottom Control Bar
-        HStack(spacing: 20) {
-          // Secondary Action Button
-          Button(action: {
-            Task {
-               await viewModel.endConversation()
+        // Bottom Bar
+        HStack {
+            // Left: Spiral / History
+            Button(action: {
+                // History action
+            }) {
+                Image(systemName: "tornado") // Closest SF Symbol to a spiral
+                    .font(.system(size: 22))
+                    .foregroundColor(Color.black.opacity(0.6))
+                    .frame(width: 44, height: 44)
             }
-          }) {
-            Circle()
-              .fill(Color.primeControlBg)
-              .frame(width: 52, height: 52)
-              .overlay(
-                Image(systemName: "stop.fill")
-                  .font(.system(size: 18))
-                  .foregroundColor(Color.primeSecondaryText)
-              )
-              .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
-          }
-          .disabled(!viewModel.isConnected)
-          .opacity(viewModel.isConnected ? 1 : 0.5)
-          
-          // Primary Talk Button
-          Button(action: {
-            Task {
-              await viewModel.toggleConversation(agentId: agentId)
+            
+            Spacer()
+            
+            // Center: Status / Action Pill
+            Button(action: {
+                Task {
+                   await viewModel.toggleConversation(agentId: agentId)
+                }
+            }) {
+                HStack(spacing: 12) {
+                    if viewModel.isConnected {
+                        // Status Text (e.g. Listening)
+                         Image(systemName: "waveform")
+                            .font(.system(size: 14))
+                        Text(viewModel.isSpeaking ? "Speaking" : "Listening")
+                            .font(.system(size: 16, weight: .medium))
+                    } else {
+                        Text("Tap to Start")
+                             .font(.system(size: 16, weight: .medium))
+                    }
+                }
+                .foregroundColor(.black.opacity(0.8))
+                .padding(.horizontal, 24)
+                .padding(.vertical, 12)
+                .background(Color.white)
+                .cornerRadius(30)
+                .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
             }
-          }) {
-            ZStack {
-              if viewModel.isConnected {
-                // Active state - animated orb
-                AnimatedOrbView(
-                  agentState: viewModel.conversation?.agentState ?? .listening,
-                  size: 72
-                )
-              } else {
-                // Idle state - primary button
-                Circle()
-                  .fill(
-                    LinearGradient(
-                      colors: [Color.primePrimaryLight, Color.primePrimary],
-                      startPoint: .topLeading,
-                      endPoint: .bottomTrailing
-                    )
-                  )
-                  .frame(width: 72, height: 72)
-                  .shadow(color: Color.primePrimary.opacity(0.4), radius: 12, x: 0, y: 6)
-                  .overlay(
-                    Image(systemName: "mic.fill")
-                      .font(.system(size: 28))
-                      .foregroundColor(.white)
-                  )
-              }
+            
+            Spacer()
+            
+            // Right: Mic Toggle (Mute/Unmute) or Stop
+            Button(action: {
+                 Task {
+                   if viewModel.isConnected {
+                       await viewModel.endConversation()
+                   } else {
+                       await viewModel.toggleConversation(agentId: agentId)
+                   }
+                }
+            }) {
+                Image(systemName: viewModel.isConnected ? "mic.fill" : "mic.slash.fill")
+                    .font(.system(size: 22))
+                    .foregroundColor(Color.black.opacity(0.6))
+                    .frame(width: 44, height: 44)
             }
-          }
-          .frame(width: 72, height: 72)
-          
-          // Transcript Button
-          Button(action: {
-            // Future: Show transcripts
-            print("Transcripts tapped")
-          }) {
-            Circle()
-              .fill(Color.primeControlBg)
-              .frame(width: 52, height: 52)
-              .overlay(
-                Image(systemName: "doc.text.fill")
-                  .font(.system(size: 18))
-                  .foregroundColor(Color.primeSecondaryText)
-              )
-              .shadow(color: Color.black.opacity(0.08), radius: 4, x: 0, y: 2)
-          }
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 16)
-        .background(
-          Capsule()
-            .fill(Color.white)
-            .shadow(color: Color.black.opacity(0.1), radius: 20, x: 0, y: 10)
-        )
-        .padding(.bottom, 40)
-        .padding(.horizontal, 24)
+        .padding(.horizontal, 30)
+        .padding(.bottom, 20)
       }
       
       // Banners
-        VStack {
+      VStack {
         if case .reconnecting = viewModel.connectionState {
           WarningBanner(message: "Reconnecting...")
             .transition(.move(edge: .top).combined(with: .opacity))
@@ -900,21 +793,21 @@ struct PrimeChat: View {
           }
           .transition(.move(edge: .top).combined(with: .opacity))
         }
+      }
     }
-  }
     .onAppear {
       Task {
         await viewModel.loadUserProfile()
-          }
-        }
+      }
+    }
     .onDisappear {
       Task {
         if viewModel.isConnected {
           await viewModel.endConversation()
+        }
       }
     }
   }
-}
 }
 
 #Preview {

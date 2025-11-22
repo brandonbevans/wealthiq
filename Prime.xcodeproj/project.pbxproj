@@ -241,7 +241,7 @@
 				SDKROOT = iphoneos;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPABASE_ANON_KEY = sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH;
-				SUPABASE_URL = "http://127.0.0.1:54321";
+				SUPABASE_URL = "http://192.168.50.17:54321";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 			};

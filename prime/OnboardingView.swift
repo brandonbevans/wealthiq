@@ -54,7 +54,7 @@ struct OnboardingView: View {
             && viewModel.currentStep != .coachingStyle
             && viewModel.currentStep != .planCalculation
           {
-            if viewModel.currentStep == .goalVisualization || viewModel.currentStep == .microAction
+            if viewModel.currentStep == .microAction
             {
               HStack(spacing: 12) {
                 ContinueButtonView(
@@ -210,12 +210,6 @@ struct OnboardingView: View {
       PrimaryGoalInputView(viewModel: viewModel) {
         handleContinue()
       }
-    case .goalVisualization:
-      GoalVisualizationInputView(viewModel: viewModel) {
-        handleContinue()
-      }
-    case .visualizationInfo:
-      VisualizationInfoView()
     case .microAction:
       MicroActionInputView(viewModel: viewModel) {
         handleContinue()
@@ -269,14 +263,6 @@ struct OnboardingView: View {
         viewModel.nextStep()
       }
     case .primaryGoal:
-      withAnimation {
-        viewModel.nextStep()
-      }
-    case .goalVisualization:
-      withAnimation {
-        viewModel.nextStep()
-      }
-    case .visualizationInfo:
       withAnimation {
         viewModel.nextStep()
       }
@@ -348,9 +334,9 @@ private struct OnboardingBackground: View {
       let glow: Color
 
       static let top = Palette(
-        core: Color(red: 1.0, green: 0.66, blue: 0.98),
-        highlight: Color(red: 1.0, green: 0.81, blue: 0.99),
-        glow: Color(red: 0.95, green: 0.77, blue: 1.0)
+        core: Color(red: 0.62, green: 0.83, blue: 1.0),
+        highlight: Color(red: 0.72, green: 0.88, blue: 1.0),
+        glow: Color(red: 0.64, green: 0.86, blue: 0.99)
       )
 
       static let bottom = Palette(

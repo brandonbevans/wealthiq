@@ -63,35 +63,46 @@ private struct GenderChip: View {
     let isSelected: Bool
     let action: () -> Void
     
+  private var selectedGradient: LinearGradient {
+    LinearGradient(
+      colors: [
+        Color(red: 0.85, green: 0.93, blue: 1.0),
+        Color(red: 0.72, green: 0.88, blue: 1.0)
+      ],
+      startPoint: .topLeading,
+      endPoint: .bottomTrailing
+    )
+  }
+
     var body: some View {
         Button(action: action) {
       HStack(spacing: 8) {
         Text(symbol)
           .font(.outfit(14, weight: .medium))
-          .foregroundColor(isSelected ? Color(red: 0.20, green: 0.18, blue: 0.19) : Color(red: 0.20, green: 0.18, blue: 0.19))
+          .foregroundColor(Color(red: 0.20, green: 0.18, blue: 0.19))
 
         Text(title)
           .font(.outfit(14, weight: .medium))
-          .foregroundColor(isSelected ? Color.black : Color(red: 0.20, green: 0.18, blue: 0.19))
+          .foregroundColor(Color(red: 0.20, green: 0.18, blue: 0.19))
       }
       .frame(maxWidth: .infinity)
       .padding(.vertical, 16)
       .background(
         RoundedRectangle(cornerRadius: 100)
-          .fill(isSelected ? Color(red: 0.93, green: 0.91, blue: 1.0) : Color.white.opacity(0.95))
+          .fill(isSelected ? AnyShapeStyle(selectedGradient) : AnyShapeStyle(Color.white.opacity(0.95)))
       )
       .overlay(
         RoundedRectangle(cornerRadius: 100)
           .stroke(
             isSelected
-              ? Color(red: 0.39, green: 0.27, blue: 0.92)
+              ? Color(red: 0.3, green: 0.5, blue: 0.9).opacity(0.7)
               : Color(red: 0.93, green: 0.93, blue: 0.93),
             lineWidth: 0.5
           )
       )
       .shadow(
         color: isSelected
-          ? Color(red: 0.40, green: 0.27, blue: 0.91).opacity(0.18)
+          ? Color(red: 0.3, green: 0.5, blue: 0.9).opacity(0.18)
           : Color.clear,
         radius: 18,
         x: 0,

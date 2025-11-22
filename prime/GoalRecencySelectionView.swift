@@ -43,8 +43,8 @@ private struct GoalRecencyChip: View {
   private var selectedGradient: LinearGradient {
     LinearGradient(
       colors: [
-        Color(red: 0.87, green: 0.79, blue: 1.0),
-        Color(red: 0.78, green: 0.69, blue: 0.99),
+        Color(red: 0.85, green: 0.93, blue: 1.0),
+        Color(red: 0.72, green: 0.88, blue: 1.0),
       ],
       startPoint: .topLeading,
       endPoint: .bottomTrailing
@@ -68,13 +68,13 @@ private struct GoalRecencyChip: View {
           RoundedRectangle(cornerRadius: 80)
             .stroke(
               isSelected
-                ? Color(red: 0.52, green: 0.36, blue: 0.94).opacity(0.7)
+                ? Color(red: 0.3, green: 0.5, blue: 0.9).opacity(0.7)
                 : Color(red: 0.93, green: 0.93, blue: 0.93),
               lineWidth: 1
             )
         )
         .shadow(
-          color: isSelected ? Color(red: 0.4, green: 0.27, blue: 0.91).opacity(0.18) : Color.clear,
+          color: isSelected ? Color(red: 0.3, green: 0.5, blue: 0.9).opacity(0.18) : Color.clear,
           radius: 18,
           x: 0,
           y: 10
